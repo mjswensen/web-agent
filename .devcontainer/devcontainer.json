@@ -1,5 +1,11 @@
 {
-  "name": "web-agent",
-  "image": "node",
-  "remoteUser": "node"
+	"name": "web-agent",
+	"image": "node",
+	"build": { "dockerfile": "./Dockerfile" },
+	"remoteUser": "node",
+	"postCreateCommand": {
+		"install": "npm install",
+		"playwright": "sudo npx playwright install-deps && npx playwright install"
+	},
+	"forwardPorts": [5100]
 }
