@@ -26,6 +26,20 @@
 		}
 	}
 
+	async function queueFollowUp(): Promise<void> {
+		if (!client || !canSend || !app.isAgentActive) return;
+		sending = true;
+		try {
+			const response = await client.sendCommand('follow_up', { message: draft });
+			if (response.success) draft = '';
+			else app.setConnectionError(response.error ?? 'Pi could not queue the follow-up.');
+		} catch (error) {
+			app.setConnectionError(error instanceof Error ? error.message : String(error));
+		} finally {
+			sending = false;
+		}
+	}
+
 	async function abort(): Promise<void> {
 		if (!client || !isConnected || !app.isAgentActive) return;
 		try {
@@ -78,6 +92,14 @@
 					{sending ? 'Sending…' : action}
 				</button>
 				{#if app.isAgentActive}
+					<button
+						type="button"
+						class="min-h-11 min-w-24 rounded-lg border border-blue-200 bg-blue-50 px-4 text-sm font-semibold text-blue-700 transition hover:bg-blue-100 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+						onclick={() => void queueFollowUp()}
+						disabled={!canSend}
+					>
+						Follow-up
+					</button>
 					<button
 						type="button"
 						class="min-h-11 min-w-24 rounded-lg border border-red-200 bg-red-50 px-4 text-sm font-semibold text-red-700 transition hover:bg-red-100 focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"

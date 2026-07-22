@@ -4,6 +4,8 @@
 	import { getAppState } from '$lib/state/app-context.svelte';
 	import Conversation from './Conversation.svelte';
 	import Editor from './Editor.svelte';
+	import Footer from './Footer.svelte';
+	import QueuePanel from './QueuePanel.svelte';
 
 	const app = getAppState();
 	let client = $state<WebAgentWebSocketClient | undefined>(undefined);
@@ -41,28 +43,39 @@
 					<p class="max-w-58 truncate text-[11px] text-slate-500" title={cwd}>{cwd}</p>
 				</div>
 			</div>
-			<div class="text-right text-[11px] leading-5 text-slate-500">
-				<p>{app.sessionName ?? 'New session'}</p>
-				<p>
-					{app.connection.status === 'connected'
-						? app.isAgentActive
-							? 'Agent working'
-							: 'Ready'
-						: app.connection.status}
-				</p>
+			<div class="flex items-center gap-3 text-right text-[11px] leading-5 text-slate-500">
+				<div class="hidden gap-1 sm:flex">
+					<button
+						type="button"
+						class="min-h-9 rounded px-2 hover:bg-slate-100 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+						onclick={() => app.setThinkingExpanded(!app.layout.thinkingExpanded)}
+					>
+						{app.layout.thinkingExpanded ? 'Hide thinking' : 'Show thinking'}
+					</button>
+					<button
+						type="button"
+						class="min-h-9 rounded px-2 hover:bg-slate-100 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+						onclick={() => app.setToolsExpanded(!app.layout.toolsExpanded)}
+					>
+						{app.layout.toolsExpanded ? 'Collapse tools' : 'Expand tools'}
+					</button>
+				</div>
+				<div>
+					<p>{app.sessionName ?? 'New session'}</p>
+					<p>
+						{app.connection.status === 'connected'
+							? app.isAgentActive
+								? 'Agent working'
+								: 'Ready'
+							: app.connection.status}
+					</p>
+				</div>
 			</div>
 		</div>
 	</header>
 
 	<Conversation state={app} />
+	<QueuePanel {app} />
 	<Editor {app} {client} />
-
-	<footer
-		class="border-t border-slate-200 bg-slate-50 px-4 py-2 text-[11px] text-slate-500 sm:px-6"
-	>
-		<div class="mx-auto flex w-full max-w-6xl flex-wrap justify-between gap-x-4 gap-y-1">
-			<span>{app.connection.statusMessage ?? 'Local Pi RPC connection'}</span>
-			<span>{app.isAgentActive ? 'Streaming' : 'Idle'}</span>
-		</div>
-	</footer>
+	<Footer {app} />
 </div>

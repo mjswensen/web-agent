@@ -52,6 +52,8 @@ describe('conversation event reducer', () => {
 
 		expect(state).toEqual({
 			isStreaming: false,
+			lastAssistantId: 'assistant:10',
+			tools: [],
 			messages: [
 				{
 					id: 'assistant:10',
@@ -63,5 +65,51 @@ describe('conversation event reducer', () => {
 				}
 			]
 		});
+	});
+
+	it('keeps one cumulative tool card with final output and an edit diff', () => {
+		let state = reduceConversationEvent(initialConversationState(), {
+			type: 'message_end',
+			message: {
+				role: 'assistant',
+				timestamp: 10,
+				content: [{ type: 'text', text: 'Editing now.' }]
+			}
+		});
+		state = reduceConversationEvent(state, {
+			type: 'tool_execution_start',
+			toolCallId: 'tool-1',
+			toolName: 'edit',
+			args: { path: 'src/app.ts' }
+		});
+		state = reduceConversationEvent(state, {
+			type: 'tool_execution_update',
+			toolCallId: 'tool-1',
+			toolName: 'edit',
+			args: { path: 'src/app.ts' },
+			partialResult: { content: [{ type: 'text', text: 'partial output' }] }
+		});
+		state = reduceConversationEvent(state, {
+			type: 'tool_execution_end',
+			toolCallId: 'tool-1',
+			toolName: 'edit',
+			isError: false,
+			result: {
+				content: [{ type: 'text', text: 'changed src/app.ts' }],
+				details: { diff: '+new\n-old' }
+			}
+		});
+
+		expect(state.tools).toEqual([
+			{
+				id: 'tool-1',
+				name: 'edit',
+				args: '{\n  "path": "src/app.ts"\n}',
+				output: 'changed src/app.ts',
+				diff: '+new\n-old',
+				status: 'success',
+				parentMessageId: 'assistant:10'
+			}
+		]);
 	});
 });

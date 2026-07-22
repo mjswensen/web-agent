@@ -10,6 +10,7 @@ import type {
 	ServerFrame,
 	SnapshotFrame
 } from '../lib/client/protocol.js';
+import { EventBatcher } from './event-batcher.js';
 import type { PiProcess } from './pi-process.js';
 
 export interface BrokerClient {
@@ -139,8 +140,13 @@ export class RpcBroker {
 	private readonly snapshots = new Map<string, JsonValue>();
 	private nextRequestNumber = 0;
 	private readonly detach: Array<() => void>;
+	private readonly eventBatcher: EventBatcher;
 
 	constructor(private readonly pi: PiRpcTransport | PiProcess) {
+		this.eventBatcher = new EventBatcher((events) => {
+			if (events.length === 1) this.broadcast({ kind: 'event', event: events[0] });
+			else this.broadcast({ kind: 'events', events });
+		});
 		this.detach = [
 			pi.onRecord((record) => this.handlePiRecord(record)),
 			pi.onProtocolError((error) => this.broadcastStatus('pi_unavailable', error.message)),
@@ -170,6 +176,7 @@ export class RpcBroker {
 
 	dispose(): void {
 		for (const unsubscribe of this.detach) unsubscribe();
+		this.eventBatcher.dispose();
 		this.clients.clear();
 		this.pending.clear();
 	}
@@ -244,6 +251,7 @@ export class RpcBroker {
 			return;
 		}
 		if (record.type === 'extension_ui_request') {
+			this.eventBatcher.flush();
 			if (typeof record.id !== 'string' || typeof record.method !== 'string') {
 				this.broadcastStatus('pi_unavailable', 'Pi emitted an invalid extension UI request.');
 				return;
@@ -257,8 +265,8 @@ export class RpcBroker {
 		}
 
 		const event = record as JsonObject;
-		this.broadcast({ kind: 'event', event });
 		if (record.type === 'queue_update') this.storeSnapshot('queue', event);
+		this.eventBatcher.push(event);
 	}
 
 	private handlePiResponse(response: Record<string, unknown>): void {
@@ -311,6 +319,7 @@ export class RpcBroker {
 	}
 
 	private broadcastStatus(status: 'pi_unavailable', message: string): void {
+		this.eventBatcher.flush();
 		this.announceStatus(status, message);
 	}
 }

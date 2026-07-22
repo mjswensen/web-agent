@@ -1,8 +1,13 @@
 <script lang="ts">
 	import MessageCard from './MessageCard.svelte';
+	import ToolCard from './ToolCard.svelte';
 	import type { AppState } from '$lib/state/app-state.svelte';
 
 	let { state }: { state: AppState } = $props();
+
+	function toolsFor(messageId: string) {
+		return state.conversation.tools.filter((tool) => tool.parentMessageId === messageId);
+	}
 </script>
 
 <section
@@ -26,7 +31,10 @@
 			</div>
 		{:else}
 			{#each state.conversation.messages as message (message.id)}
-				<MessageCard {message} />
+				<MessageCard {message} tools={toolsFor(message.id)} app={state} />
+			{/each}
+			{#each state.conversation.tools.filter((tool) => !tool.parentMessageId) as tool (tool.id)}
+				<ToolCard {tool} app={state} />
 			{/each}
 		{/if}
 

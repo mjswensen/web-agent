@@ -3,7 +3,8 @@ import {
 	parseServerFrame,
 	type BrowserCommand,
 	type JsonObject,
-	type ResponseFrame
+	type ResponseFrame,
+	type ServerFrame
 } from './protocol.js';
 
 export interface WebSocketClientOptions {
@@ -18,6 +19,17 @@ const bootstrapCommands: BrowserCommand[] = [
 	'get_commands',
 	'get_session_stats'
 ];
+
+function needsFooterRefresh(frame: ServerFrame): boolean {
+	const events =
+		frame.kind === 'event' ? [frame.event] : frame.kind === 'events' ? frame.events : [];
+	return events.some(
+		(event) =>
+			event.type === 'agent_end' ||
+			event.type === 'agent_settled' ||
+			event.type === 'compaction_end'
+	);
+}
 
 function createId(): string {
 	return (
@@ -111,6 +123,14 @@ export class WebAgentWebSocketClient {
 		}
 	}
 
+	private async refreshFooter(): Promise<void> {
+		try {
+			await Promise.all([this.sendCommand('get_state'), this.sendCommand('get_session_stats')]);
+		} catch {
+			// Connection close/reconnect handles the visible error state.
+		}
+	}
+
 	private scheduleReconnect(): void {
 		if (!this.shouldReconnect || this.reconnectTimer) return;
 		this.reconnectAttempt += 1;
@@ -142,6 +162,7 @@ export class WebAgentWebSocketClient {
 				return;
 			}
 			this.options.state.receive(frame);
+			if (needsFooterRefresh(frame)) void this.refreshFooter();
 			if (frame.kind === 'response') this.pendingResponse(frame);
 			if (frame.kind === 'pong') {
 				this.pending

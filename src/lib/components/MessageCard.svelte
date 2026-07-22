@@ -1,7 +1,14 @@
 <script lang="ts">
-	import type { ConversationMessage } from '$lib/state/event-reducer';
+	import type { AppState } from '$lib/state/app-state.svelte';
+	import type { ConversationMessage, ToolExecution } from '$lib/state/event-reducer';
+	import ThinkingBlock from './ThinkingBlock.svelte';
+	import ToolCard from './ToolCard.svelte';
 
-	let { message }: { message: ConversationMessage } = $props();
+	let {
+		message,
+		tools,
+		app
+	}: { message: ConversationMessage; tools: ToolExecution[]; app: AppState } = $props();
 
 	const labelByRole = {
 		user: 'You',
@@ -40,9 +47,15 @@
 		<pre
 			class="font-inherit m-0 text-sm leading-6 break-words whitespace-pre-wrap text-slate-800">{message.text}</pre>
 	{/if}
+	{#if message.thinking}
+		<ThinkingBlock thinking={message.thinking} {app} />
+	{/if}
 	{#if message.error}
 		<p class="mt-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
 			{message.error}
 		</p>
 	{/if}
+	{#each tools as tool (tool.id)}
+		<ToolCard {tool} {app} />
+	{/each}
 </article>

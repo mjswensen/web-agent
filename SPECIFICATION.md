@@ -834,7 +834,7 @@ Implement in vertical slices to keep the agent bridge testable:
 2. [x] Implement CLI parsing, loopback security defaults, Pi resolution, child lifecycle, and strict JSONL bridge with unit tests.
 3. [x] Implement `/ws`, browser protocol validation, RPC correlation, broadcast state, and the client-scoped connection state.
 4. [x] Implement main shell, bootstrap/reconnect, basic prompt streaming, abort, and conversation reducer.
-5. [ ] Add tool cards, thinking blocks, batching, queue display, footer stats, and collapse controls.
+5. [x] Add tool cards, thinking blocks, batching, queue display, footer stats, and collapse controls.
 6. [ ] Add commands palette, model/thinking controls, compaction UI, and extension UI host.
 7. [ ] Add session SDK list, session drawer, switch/new/rename/fork/clone flows, and view-only tree.
 8. [ ] Add mobile responsive refinement, recovery states, and happy-path E2E coverage.
