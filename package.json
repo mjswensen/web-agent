@@ -6,6 +6,7 @@
 	"scripts": {
 		"dev": "vite dev --port 5100",
 		"build": "vite build",
+		"precommit": "npm run build && npm run check && npm run lint && npm run test",
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
