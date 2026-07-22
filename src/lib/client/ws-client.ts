@@ -12,6 +12,13 @@ export interface WebSocketClientOptions {
 	webSocketFactory?: (url: string) => WebSocket;
 }
 
+const bootstrapCommands: BrowserCommand[] = [
+	'get_state',
+	'get_messages',
+	'get_commands',
+	'get_session_stats'
+];
+
 function createId(): string {
 	return (
 		globalThis.crypto?.randomUUID?.() ??
@@ -27,6 +34,9 @@ function defaultUrl(): string {
 /** Browser-only WebSocket client. Call connect from onMount, never during SSR. */
 export class WebAgentWebSocketClient {
 	private socket: WebSocket | undefined;
+	private reconnectTimer: ReturnType<typeof setTimeout> | undefined;
+	private reconnectAttempt = 0;
+	private shouldReconnect = true;
 	private readonly pending = new Map<
 		string,
 		{ resolve: (response: ResponseFrame) => void; reject: (error: Error) => void }
@@ -38,26 +48,14 @@ export class WebAgentWebSocketClient {
 	}
 
 	connect(): void {
-		if (
-			this.socket &&
-			(this.socket.readyState === WebSocket.CONNECTING || this.socket.readyState === WebSocket.OPEN)
-		)
-			return;
-		this.options.state.setConnection('connecting');
-		const socket = this.webSocketFactory(this.options.url ?? defaultUrl());
-		this.socket = socket;
-
-		socket.onopen = () => this.options.state.setConnection('connected');
-		socket.onmessage = (event) => this.receive(event.data);
-		socket.onerror = () => this.options.state.setConnectionError('WebSocket connection failed.');
-		socket.onclose = () => {
-			if (this.socket === socket) this.socket = undefined;
-			this.options.state.setConnection('disconnected');
-			this.rejectPending(new Error('WebSocket connection closed.'));
-		};
+		this.shouldReconnect = true;
+		this.open();
 	}
 
 	disconnect(): void {
+		this.shouldReconnect = false;
+		if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+		this.reconnectTimer = undefined;
 		this.socket?.close(1000, 'Page closed');
 		this.socket = undefined;
 		this.rejectPending(new Error('WebSocket client disconnected.'));
@@ -72,6 +70,57 @@ export class WebAgentWebSocketClient {
 	ping(): Promise<ResponseFrame> {
 		const id = createId();
 		return this.sendRequest({ kind: 'ping', id });
+	}
+
+	private open(): void {
+		if (
+			this.socket &&
+			(this.socket.readyState === WebSocket.CONNECTING || this.socket.readyState === WebSocket.OPEN)
+		)
+			return;
+		this.options.state.setConnection('connecting');
+		const socket = this.webSocketFactory(this.options.url ?? defaultUrl());
+		this.socket = socket;
+
+		socket.onopen = () => {
+			if (this.socket !== socket) return;
+			this.reconnectAttempt = 0;
+			this.options.state.setConnection('connected');
+			void this.bootstrap();
+		};
+		socket.onmessage = (event) => this.receive(event.data);
+		socket.onerror = () => this.options.state.setConnectionError('WebSocket connection failed.');
+		socket.onclose = () => {
+			if (this.socket === socket) this.socket = undefined;
+			this.options.state.setConnection('disconnected');
+			this.rejectPending(new Error('WebSocket connection closed.'));
+			this.scheduleReconnect();
+		};
+	}
+
+	private async bootstrap(): Promise<void> {
+		for (const command of bootstrapCommands) {
+			try {
+				const response = await this.sendCommand(command);
+				if (!response.success)
+					this.options.state.setConnectionError(response.error ?? `Unable to ${command}.`);
+			} catch {
+				// A close handler already surfaces connectivity failures and schedules retry.
+				return;
+			}
+		}
+	}
+
+	private scheduleReconnect(): void {
+		if (!this.shouldReconnect || this.reconnectTimer) return;
+		this.reconnectAttempt += 1;
+		this.options.state.setReconnectAttempt(this.reconnectAttempt);
+		const exponentialDelay = Math.min(10_000, 250 * 2 ** (this.reconnectAttempt - 1));
+		const jitter = Math.floor(Math.random() * Math.min(250, exponentialDelay / 4));
+		this.reconnectTimer = setTimeout(() => {
+			this.reconnectTimer = undefined;
+			this.open();
+		}, exponentialDelay + jitter);
 	}
 
 	private sendRequest(frame: JsonObject): Promise<ResponseFrame> {
@@ -99,6 +148,9 @@ export class WebAgentWebSocketClient {
 					.get(frame.id)
 					?.resolve({ kind: 'response', id: frame.id, command: 'ping', success: true });
 				this.pending.delete(frame.id);
+			}
+			if (frame.kind === 'server_status' && frame.status === 'server_shutting_down') {
+				this.shouldReconnect = false;
 			}
 		} catch {
 			this.options.state.setConnectionError('Server sent malformed JSON.');
