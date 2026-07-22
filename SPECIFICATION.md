@@ -832,7 +832,7 @@ Implement in vertical slices to keep the agent bridge testable:
 
 1. [x] Initialize SvelteKit + adapter-node + Tailwind + TypeScript project and build/start scripts.
 2. [x] Implement CLI parsing, loopback security defaults, Pi resolution, child lifecycle, and strict JSONL bridge with unit tests.
-3. [ ] Implement `/ws`, browser protocol validation, RPC correlation, broadcast state, and the client-scoped connection state.
+3. [x] Implement `/ws`, browser protocol validation, RPC correlation, broadcast state, and the client-scoped connection state.
 4. [ ] Implement main shell, bootstrap/reconnect, basic prompt streaming, abort, and conversation reducer.
 5. [ ] Add tool cards, thinking blocks, batching, queue display, footer stats, and collapse controls.
 6. [ ] Add commands palette, model/thinking controls, compaction UI, and extension UI host.
