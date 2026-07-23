@@ -12,10 +12,15 @@ import type {
 } from '../lib/client/protocol.js';
 import { EventBatcher } from './event-batcher.js';
 import type { PiProcess } from './pi-process.js';
+import type { SessionListProvider } from './session-list.js';
 
 export interface BrokerClient {
 	id: string;
 	send(frame: ServerFrame): void;
+}
+
+export interface RpcBrokerOptions {
+	sessionList?: SessionListProvider;
 }
 
 export interface PiRpcTransport {
@@ -142,7 +147,10 @@ export class RpcBroker {
 	private readonly detach: Array<() => void>;
 	private readonly eventBatcher: EventBatcher;
 
-	constructor(private readonly pi: PiRpcTransport | PiProcess) {
+	constructor(
+		private readonly pi: PiRpcTransport | PiProcess,
+		private readonly options: RpcBrokerOptions = {}
+	) {
 		this.eventBatcher = new EventBatcher((events) => {
 			if (events.length === 1) this.broadcast({ kind: 'event', event: events[0] });
 			else this.broadcast({ kind: 'events', events });
@@ -171,6 +179,7 @@ export class RpcBroker {
 		for (const [snapshotType, data] of this.snapshots) {
 			client.send({ kind: 'snapshot', snapshotType, data });
 		}
+		if (this.options.sessionList) void this.refreshSessionList();
 		return () => this.clients.delete(client.id);
 	}
 
@@ -191,7 +200,42 @@ export class RpcBroker {
 			await this.forwardDialogResponse(clientId, frame);
 			return;
 		}
+		if (frame.command === 'get_session_list') {
+			await this.handleSessionListRequest(clientId, frame);
+			return;
+		}
 		await this.forwardCommand(clientId, frame);
+	}
+
+	private async handleSessionListRequest(clientId: string, frame: CommandFrame): Promise<void> {
+		if (!this.options.sessionList) {
+			this.failure(
+				clientId,
+				frame.id,
+				frame.command,
+				new Error('Session listing is not configured.')
+			);
+			return;
+		}
+		try {
+			const data = await this.refreshSessionList();
+			this.send(clientId, {
+				kind: 'response',
+				id: frame.id,
+				command: frame.command,
+				success: true,
+				data
+			});
+		} catch (error) {
+			this.failure(clientId, frame.id, frame.command, error);
+		}
+	}
+
+	private async refreshSessionList(): Promise<JsonValue> {
+		if (!this.options.sessionList) return { sessions: [] };
+		const data = await this.options.sessionList.list();
+		this.storeSnapshot('session_list', data);
+		return data;
 	}
 
 	private async forwardCommand(clientId: string, frame: CommandFrame): Promise<void> {
@@ -293,6 +337,21 @@ export class RpcBroker {
 			const snapshotType = snapshotTypeFor(request.browserCommand);
 			if (snapshotType) this.storeSnapshot(snapshotType, toJsonValue(response.data));
 		}
+		if (success && shouldRefreshSessionList(request.browserCommand, response.data)) {
+			void this.refreshSessionList().catch((error: unknown) =>
+				this.broadcastStatus(
+					'pi_unavailable',
+					error instanceof Error ? error.message : String(error)
+				)
+			);
+		}
+		if (success && isSessionTransition(request.browserCommand, response.data)) {
+			this.eventBatcher.flush();
+			this.broadcast({
+				kind: 'event',
+				event: { type: 'session_changed', operation: request.browserCommand }
+			});
+		}
 	}
 
 	private storeSnapshot(snapshotType: string, data: JsonValue): void {
@@ -324,6 +383,36 @@ export class RpcBroker {
 	}
 }
 
+function isCancelled(data: unknown): boolean {
+	return (
+		typeof data === 'object' &&
+		data !== null &&
+		!Array.isArray(data) &&
+		(data as Record<string, unknown>).cancelled === true
+	);
+}
+
+function isSessionTransition(command: BrowserCommand, data: unknown): boolean {
+	return (
+		(command === 'new_session' ||
+			command === 'switch_session' ||
+			command === 'fork' ||
+			command === 'clone') &&
+		!isCancelled(data)
+	);
+}
+
+function shouldRefreshSessionList(command: BrowserCommand, data: unknown): boolean {
+	return (
+		(command === 'new_session' ||
+			command === 'switch_session' ||
+			command === 'fork' ||
+			command === 'clone' ||
+			command === 'set_session_name') &&
+		!isCancelled(data)
+	);
+}
+
 function snapshotTypeFor(command: BrowserCommand): string | undefined {
 	switch (command) {
 		case 'get_state':
@@ -336,6 +425,12 @@ function snapshotTypeFor(command: BrowserCommand): string | undefined {
 			return 'commands';
 		case 'get_available_models':
 			return 'models';
+		case 'get_tree':
+			return 'tree';
+		case 'get_entries':
+			return 'entries';
+		case 'get_fork_messages':
+			return 'fork_messages';
 		default:
 			return undefined;
 	}

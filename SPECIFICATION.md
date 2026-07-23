@@ -836,7 +836,7 @@ Implement in vertical slices to keep the agent bridge testable:
 4. [x] Implement main shell, bootstrap/reconnect, basic prompt streaming, abort, and conversation reducer.
 5. [x] Add tool cards, thinking blocks, batching, queue display, footer stats, and collapse controls.
 6. [x] Add commands palette, model/thinking controls, compaction UI, and extension UI host.
-7. [ ] Add session SDK list, session drawer, switch/new/rename/fork/clone flows, and view-only tree.
+7. [x] Add session SDK list, session drawer, switch/new/rename/fork/clone flows, and view-only tree.
 8. [ ] Add mobile responsive refinement, recovery states, and happy-path E2E coverage.
 9. [ ] Finish README usage/install/security documentation and MIT license file.
 

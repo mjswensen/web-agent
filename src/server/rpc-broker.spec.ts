@@ -35,7 +35,7 @@ class FakePi implements PiRpcTransport {
 	}
 }
 
-function command(id: string, name: 'prompt' | 'get_state') {
+function command(id: string, name: 'prompt' | 'get_state' | 'get_session_list') {
 	const frame = parseClientFrame({
 		kind: 'command',
 		id,
@@ -82,6 +82,32 @@ describe('browser protocol validation and Pi RPC broker', () => {
 			{ kind: 'response', id: 'browser-request', command: 'prompt', success: true }
 		]);
 		expect(second).toEqual([]);
+	});
+
+	it('serves session lists internally without forwarding them to Pi', async () => {
+		const pi = new FakePi();
+		const broker = new RpcBroker(pi, {
+			sessionList: {
+				list: async () => ({ sessions: [{ id: 'one', path: '/sessions/one.jsonl' }] })
+			}
+		});
+		const frames: unknown[] = [];
+		broker.addClient({ id: 'client', send: (frame) => frames.push(frame) });
+		await broker.handleClientFrame('client', command('session-list', 'get_session_list'));
+
+		expect(pi.writes).toEqual([]);
+		expect(frames).toContainEqual({
+			kind: 'snapshot',
+			snapshotType: 'session_list',
+			data: { sessions: [{ id: 'one', path: '/sessions/one.jsonl' }] }
+		});
+		expect(frames).toContainEqual({
+			kind: 'response',
+			id: 'session-list',
+			command: 'get_session_list',
+			success: true,
+			data: { sessions: [{ id: 'one', path: '/sessions/one.jsonl' }] }
+		});
 	});
 
 	it('broadcasts events and retains successful state snapshots for reconnecting clients', async () => {

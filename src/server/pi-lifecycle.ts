@@ -5,6 +5,7 @@ import {
 	type ResolvedPiBinary
 } from './pi-binary.js';
 import { PiProcess, type PiProcessOptions } from './pi-process.js';
+import { createSessionListProvider, type SessionListProvider } from './session-list.js';
 
 export interface PiLifecycleOptions {
 	argv: readonly string[];
@@ -18,6 +19,7 @@ export interface StartedPi {
 	cli: WebAgentCliOptions;
 	binary: ResolvedPiBinary;
 	process: PiProcess;
+	sessionList: SessionListProvider;
 }
 
 /**
@@ -42,5 +44,10 @@ export async function startPiLifecycle(options: PiLifecycleOptions): Promise<Sta
 		spawn: options.spawn
 	});
 
-	return { cli, binary, process: piProcess };
+	return {
+		cli,
+		binary,
+		process: piProcess,
+		sessionList: createSessionListProvider({ cwd, sessionDir: cli.sessionDir })
+	};
 }

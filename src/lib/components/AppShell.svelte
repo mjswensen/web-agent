@@ -10,6 +10,8 @@
 	import Footer from './Footer.svelte';
 	import ModelDialog from './ModelDialog.svelte';
 	import QueuePanel from './QueuePanel.svelte';
+	import SessionDrawer from './SessionDrawer.svelte';
+	import SessionTreeDrawer from './SessionTreeDrawer.svelte';
 	import ThinkingDialog from './ThinkingDialog.svelte';
 	import ToastHost from './ToastHost.svelte';
 	import WidgetRegion from './WidgetRegion.svelte';
@@ -23,6 +25,16 @@
 	function openModelDialog(): void {
 		app.layout.modelDialogOpen = true;
 		void client?.sendCommand('get_available_models');
+	}
+
+	function openSessions(): void {
+		app.layout.sessionDrawerOpen = true;
+		void client?.sendCommand('get_session_list');
+	}
+
+	function openTree(): void {
+		app.layout.treeDrawerOpen = true;
+		void client?.sendCommand('get_tree');
 	}
 
 	onMount(() => {
@@ -61,6 +73,20 @@
 			</div>
 			<div class="flex items-center gap-3 text-right text-[11px] leading-5 text-slate-500">
 				<div class="hidden gap-1 sm:flex">
+					<button
+						type="button"
+						class="min-h-9 rounded px-2 hover:bg-slate-100 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+						onclick={openSessions}
+					>
+						Sessions
+					</button>
+					<button
+						type="button"
+						class="min-h-9 rounded px-2 hover:bg-slate-100 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+						onclick={openTree}
+					>
+						Tree
+					</button>
 					<button
 						type="button"
 						class="min-h-9 rounded px-2 hover:bg-slate-100 focus:ring-2 focus:ring-blue-500 focus:outline-none"
@@ -131,4 +157,6 @@
 	<CompactDialog {app} {client} />
 	<ExtensionDialogHost {app} {client} />
 	<ToastHost {app} />
+	<SessionDrawer {app} {client} />
+	<SessionTreeDrawer {app} {client} />
 </div>

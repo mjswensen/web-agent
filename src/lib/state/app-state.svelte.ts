@@ -31,6 +31,8 @@ export interface LayoutState {
 	modelDialogOpen: boolean;
 	thinkingDialogOpen: boolean;
 	compactDialogOpen: boolean;
+	sessionDrawerOpen: boolean;
+	treeDrawerOpen: boolean;
 }
 
 export interface ExtensionDialog {
@@ -130,10 +132,13 @@ export class AppState {
 		commandPaletteOpen: false,
 		modelDialogOpen: false,
 		thinkingDialogOpen: false,
-		compactDialogOpen: false
+		compactDialogOpen: false,
+		sessionDrawerOpen: false,
+		treeDrawerOpen: false
 	});
 	extension: ExtensionState = $state({ dialogs: [], toasts: [], statuses: {}, widgets: {} });
 	compaction: CompactionState = $state({ active: false });
+	sessionTransition = $state(false);
 	editorText = $state('');
 	lastEvent = $state<JsonValue | undefined>(undefined);
 
@@ -157,6 +162,25 @@ export class AppState {
 
 	get activeDialog(): ExtensionDialog | undefined {
 		return this.extension.dialogs[0];
+	}
+
+	get sessionList(): JsonObject[] {
+		const data = asObject(this.snapshots.session_list);
+		return Array.isArray(data?.sessions)
+			? data.sessions.filter((session): session is JsonObject => asObject(session) !== undefined)
+			: [];
+	}
+
+	get tree(): JsonObject[] {
+		const data = asObject(this.snapshots.tree);
+		return Array.isArray(data?.tree)
+			? data.tree.filter((node): node is JsonObject => asObject(node) !== undefined)
+			: [];
+	}
+
+	get activeTreeLeafId(): string | undefined {
+		const data = asObject(this.snapshots.tree);
+		return typeof data?.leafId === 'string' ? data.leafId : undefined;
 	}
 
 	get widgetsAboveEditor(): ExtensionWidget[] {
@@ -238,6 +262,12 @@ export class AppState {
 		this.lastEvent = event;
 		this.conversation = reduceConversationEvent(this.conversation, event);
 		if (event.type === 'queue_update') this.queue = queueFrom(event);
+		if (event.type === 'session_changed') {
+			this.sessionTransition = true;
+			this.conversation = initialConversationState();
+			this.queue = { steering: [], followUp: [] };
+			this.extension.dialogs = [];
+		}
 		if (event.type === 'compaction_start') {
 			this.compaction = { active: true, message: 'Compacting conversation…' };
 		}
@@ -299,7 +329,10 @@ export class AppState {
 	receive(frame: ServerFrame): void {
 		if (frame.kind === 'snapshot') {
 			this.snapshots[frame.snapshotType] = frame.data;
-			if (frame.snapshotType === 'messages') this.conversation = reduceMessagesSnapshot(frame.data);
+			if (frame.snapshotType === 'messages') {
+				this.conversation = reduceMessagesSnapshot(frame.data);
+				this.sessionTransition = false;
+			}
 			if (frame.snapshotType === 'queue') this.queue = queueFrom(frame.data);
 			return;
 		}

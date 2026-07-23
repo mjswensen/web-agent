@@ -18,18 +18,25 @@ const bootstrapCommands: BrowserCommand[] = [
 	'get_state',
 	'get_messages',
 	'get_commands',
-	'get_session_stats'
+	'get_session_stats',
+	'get_session_list'
 ];
 
+function frameEvents(frame: ServerFrame): JsonObject[] {
+	return frame.kind === 'event' ? [frame.event] : frame.kind === 'events' ? frame.events : [];
+}
+
 function needsFooterRefresh(frame: ServerFrame): boolean {
-	const events =
-		frame.kind === 'event' ? [frame.event] : frame.kind === 'events' ? frame.events : [];
-	return events.some(
+	return frameEvents(frame).some(
 		(event) =>
 			event.type === 'agent_end' ||
 			event.type === 'agent_settled' ||
 			event.type === 'compaction_end'
 	);
+}
+
+function needsSessionRefresh(frame: ServerFrame): boolean {
+	return frameEvents(frame).some((event) => event.type === 'session_changed');
 }
 
 function createId(): string {
@@ -139,6 +146,20 @@ export class WebAgentWebSocketClient {
 		}
 	}
 
+	private async refreshSession(): Promise<void> {
+		try {
+			await Promise.all([
+				this.sendCommand('get_state'),
+				this.sendCommand('get_messages'),
+				this.sendCommand('get_commands'),
+				this.sendCommand('get_session_stats'),
+				this.sendCommand('get_session_list')
+			]);
+		} catch {
+			// Connection close/reconnect handles the visible error state.
+		}
+	}
+
 	private scheduleReconnect(): void {
 		if (!this.shouldReconnect || this.reconnectTimer) return;
 		this.reconnectAttempt += 1;
@@ -178,6 +199,7 @@ export class WebAgentWebSocketClient {
 			}
 			this.options.state.receive(frame);
 			if (needsFooterRefresh(frame)) void this.refreshFooter();
+			if (needsSessionRefresh(frame)) void this.refreshSession();
 			if (frame.kind === 'response') this.pendingResponse(frame);
 			if (frame.kind === 'pong') {
 				this.pending
