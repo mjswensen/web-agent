@@ -3,6 +3,7 @@ import {
 	parseServerFrame,
 	type BrowserCommand,
 	type JsonObject,
+	type JsonValue,
 	type ResponseFrame,
 	type ServerFrame
 } from './protocol.js';
@@ -79,6 +80,13 @@ export class WebAgentWebSocketClient {
 		return this.sendRequest({ kind: 'command', id, command, params });
 	}
 
+	sendDialogResponse(
+		id: string,
+		response: { value?: JsonValue; confirmed?: boolean; cancelled?: true }
+	): void {
+		this.sendFrame({ kind: 'dialog_response', id, ...response });
+	}
+
 	ping(): Promise<ResponseFrame> {
 		const id = createId();
 		return this.sendRequest({ kind: 'ping', id });
@@ -151,6 +159,13 @@ export class WebAgentWebSocketClient {
 			this.pending.set(frame.id as string, { resolve, reject });
 			this.socket!.send(JSON.stringify(frame));
 		});
+	}
+
+	private sendFrame(frame: JsonObject): void {
+		if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
+			throw new Error('WebSocket is not connected.');
+		}
+		this.socket.send(JSON.stringify(frame));
 	}
 
 	private receive(data: unknown): void {

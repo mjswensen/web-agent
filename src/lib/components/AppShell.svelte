@@ -2,10 +2,17 @@
 	import { onMount } from 'svelte';
 	import { WebAgentWebSocketClient } from '$lib/client/ws-client';
 	import { getAppState } from '$lib/state/app-context.svelte';
+	import CommandPalette from './CommandPalette.svelte';
+	import CompactDialog from './CompactDialog.svelte';
 	import Conversation from './Conversation.svelte';
 	import Editor from './Editor.svelte';
+	import ExtensionDialogHost from './ExtensionDialogHost.svelte';
 	import Footer from './Footer.svelte';
+	import ModelDialog from './ModelDialog.svelte';
 	import QueuePanel from './QueuePanel.svelte';
+	import ThinkingDialog from './ThinkingDialog.svelte';
+	import ToastHost from './ToastHost.svelte';
+	import WidgetRegion from './WidgetRegion.svelte';
 
 	const app = getAppState();
 	let client = $state<WebAgentWebSocketClient | undefined>(undefined);
@@ -13,11 +20,20 @@
 		typeof app.sessionState?.cwd === 'string' ? app.sessionState.cwd : 'local project'
 	);
 
+	function openModelDialog(): void {
+		app.layout.modelDialogOpen = true;
+		void client?.sendCommand('get_available_models');
+	}
+
 	onMount(() => {
 		const socket = new WebAgentWebSocketClient({ state: app });
 		client = socket;
 		socket.connect();
 		return () => socket.disconnect();
+	});
+
+	$effect(() => {
+		if (app.extension.title) document.title = app.extension.title;
 	});
 </script>
 
@@ -48,6 +64,34 @@
 					<button
 						type="button"
 						class="min-h-9 rounded px-2 hover:bg-slate-100 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+						onclick={() => (app.layout.commandPaletteOpen = true)}
+					>
+						Commands
+					</button>
+					<button
+						type="button"
+						class="min-h-9 rounded px-2 hover:bg-slate-100 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+						onclick={openModelDialog}
+					>
+						Model
+					</button>
+					<button
+						type="button"
+						class="min-h-9 rounded px-2 hover:bg-slate-100 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+						onclick={() => (app.layout.thinkingDialogOpen = true)}
+					>
+						Think
+					</button>
+					<button
+						type="button"
+						class="min-h-9 rounded px-2 hover:bg-slate-100 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+						onclick={() => (app.layout.compactDialogOpen = true)}
+					>
+						Compact
+					</button>
+					<button
+						type="button"
+						class="min-h-9 rounded px-2 hover:bg-slate-100 focus:ring-2 focus:ring-blue-500 focus:outline-none"
 						onclick={() => app.setThinkingExpanded(!app.layout.thinkingExpanded)}
 					>
 						{app.layout.thinkingExpanded ? 'Hide thinking' : 'Show thinking'}
@@ -75,7 +119,16 @@
 	</header>
 
 	<Conversation state={app} />
+	<WidgetRegion widgets={app.widgetsAboveEditor} />
 	<QueuePanel {app} />
 	<Editor {app} {client} />
+	<WidgetRegion widgets={app.widgetsBelowEditor} />
 	<Footer {app} />
+
+	<CommandPalette {app} />
+	<ModelDialog {app} {client} />
+	<ThinkingDialog {app} {client} />
+	<CompactDialog {app} {client} />
+	<ExtensionDialogHost {app} {client} />
+	<ToastHost {app} />
 </div>

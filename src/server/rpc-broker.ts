@@ -332,6 +332,10 @@ function snapshotTypeFor(command: BrowserCommand): string | undefined {
 			return 'messages';
 		case 'get_session_stats':
 			return 'footer_stats';
+		case 'get_commands':
+			return 'commands';
+		case 'get_available_models':
+			return 'models';
 		default:
 			return undefined;
 	}

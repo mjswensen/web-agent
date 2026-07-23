@@ -8,6 +8,9 @@
 	<div class="mx-auto flex w-full max-w-6xl flex-wrap justify-between gap-x-4 gap-y-1">
 		<span>{app.connection.statusMessage ?? 'Local Pi RPC connection'}</span>
 		<div class="flex flex-wrap justify-end gap-x-3 gap-y-1">
+			{#each Object.entries(app.extension.statuses) as [key, text] (key)}
+				<span title={`Extension status: ${key}`}>{text}</span>
+			{/each}
 			<span title="Current model">model {app.footer.model}</span>
 			<span title="Thinking level">think {app.footer.thinking}</span>
 			<span title="Input and output tokens">{app.footer.tokens}</span>

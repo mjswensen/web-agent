@@ -4,20 +4,19 @@
 
 	let { app, client }: { app: AppState; client: WebAgentWebSocketClient | undefined } = $props();
 
-	let draft = $state('');
 	let sending = $state(false);
 	let isConnected = $derived(app.connection.status === 'connected');
 	let action = $derived(app.isAgentActive ? 'Steer' : 'Send');
-	let canSend = $derived(isConnected && !sending && draft.trim().length > 0);
+	let canSend = $derived(isConnected && !sending && app.editorText.trim().length > 0);
 
 	async function submit(): Promise<void> {
 		if (!client || !canSend) return;
 		sending = true;
 		try {
 			const response = await client.sendCommand(app.isAgentActive ? 'steer' : 'prompt', {
-				message: draft
+				message: app.editorText
 			});
-			if (response.success) draft = '';
+			if (response.success) app.editorText = '';
 			else app.setConnectionError(response.error ?? `${action} was rejected by Pi.`);
 		} catch (error) {
 			app.setConnectionError(error instanceof Error ? error.message : String(error));
@@ -30,8 +29,8 @@
 		if (!client || !canSend || !app.isAgentActive) return;
 		sending = true;
 		try {
-			const response = await client.sendCommand('follow_up', { message: draft });
-			if (response.success) draft = '';
+			const response = await client.sendCommand('follow_up', { message: app.editorText });
+			if (response.success) app.editorText = '';
 			else app.setConnectionError(response.error ?? 'Pi could not queue the follow-up.');
 		} catch (error) {
 			app.setConnectionError(error instanceof Error ? error.message : String(error));
@@ -76,7 +75,10 @@
 			<label class="sr-only" for="prompt-editor">Message Pi</label>
 			<textarea
 				id="prompt-editor"
-				bind:value={draft}
+				bind:value={app.editorText}
+				oninput={(event) => {
+					if (event.currentTarget.value.startsWith('/')) app.layout.commandPaletteOpen = true;
+				}}
 				rows="3"
 				placeholder={app.isAgentActive
 					? 'Steer the current run…'
