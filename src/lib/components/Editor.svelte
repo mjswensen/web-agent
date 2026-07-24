@@ -5,7 +5,7 @@
 	let { app, client }: { app: AppState; client: WebAgentWebSocketClient | undefined } = $props();
 
 	let sending = $state(false);
-	let isConnected = $derived(app.connection.status === 'connected');
+	let isConnected = $derived(app.canMutateSession);
 	let action = $derived(app.isAgentActive ? 'Steer' : 'Send');
 	let canSend = $derived(isConnected && !sending && app.editorText.trim().length > 0);
 
@@ -56,7 +56,9 @@
 	aria-label="Message editor"
 >
 	<div class="mx-auto flex w-full max-w-4xl flex-col gap-2">
-		{#if app.connection.status !== 'connected'}
+		{#if !app.pi.available}
+			<p class="text-xs text-red-700">{app.pi.message ?? 'Pi is unavailable.'}</p>
+		{:else if app.connection.status !== 'connected'}
 			<p class="text-xs text-amber-700">
 				{app.connection.status === 'connecting'
 					? 'Connecting to the local agent…'

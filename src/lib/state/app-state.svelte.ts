@@ -33,6 +33,7 @@ export interface LayoutState {
 	compactDialogOpen: boolean;
 	sessionDrawerOpen: boolean;
 	treeDrawerOpen: boolean;
+	mobileActionsOpen: boolean;
 }
 
 export interface ExtensionDialog {
@@ -68,6 +69,11 @@ export interface ExtensionState {
 
 export interface CompactionState {
 	active: boolean;
+	message?: string;
+}
+
+export interface PiAvailability {
+	available: boolean;
 	message?: string;
 }
 
@@ -134,10 +140,12 @@ export class AppState {
 		thinkingDialogOpen: false,
 		compactDialogOpen: false,
 		sessionDrawerOpen: false,
-		treeDrawerOpen: false
+		treeDrawerOpen: false,
+		mobileActionsOpen: false
 	});
 	extension: ExtensionState = $state({ dialogs: [], toasts: [], statuses: {}, widgets: {} });
 	compaction: CompactionState = $state({ active: false });
+	pi: PiAvailability = $state({ available: true });
 	sessionTransition = $state(false);
 	editorText = $state('');
 	lastEvent = $state<JsonValue | undefined>(undefined);
@@ -197,6 +205,10 @@ export class AppState {
 
 	get isAgentActive(): boolean {
 		return this.conversation.isStreaming || this.sessionState?.isStreaming === true;
+	}
+
+	get canMutateSession(): boolean {
+		return this.connection.status === 'connected' && this.pi.available && !this.sessionTransition;
 	}
 
 	get sessionName(): string | undefined {
@@ -350,8 +362,10 @@ export class AppState {
 		}
 		if (frame.kind === 'server_status') {
 			this.connection.statusMessage = frame.message ?? frame.status;
-			if (frame.status === 'pi_unavailable')
-				this.setConnectionError(frame.message ?? 'Pi is unavailable.');
+			if (frame.status === 'pi_unavailable') {
+				this.pi = { available: false, message: frame.message ?? 'Pi is unavailable.' };
+			}
+			if (frame.status === 'pi_restarted') this.pi = { available: true };
 		}
 	}
 }

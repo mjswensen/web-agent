@@ -35,7 +35,7 @@ class FakePi implements PiRpcTransport {
 	}
 }
 
-function command(id: string, name: 'prompt' | 'get_state' | 'get_session_list') {
+function command(id: string, name: 'prompt' | 'get_state' | 'get_session_list' | 'restart_pi') {
 	const frame = parseClientFrame({
 		kind: 'command',
 		id,
@@ -82,6 +82,28 @@ describe('browser protocol validation and Pi RPC broker', () => {
 			{ kind: 'response', id: 'browser-request', command: 'prompt', success: true }
 		]);
 		expect(second).toEqual([]);
+	});
+
+	it('rebinds to an explicitly restarted Pi transport', async () => {
+		const crashed = new FakePi();
+		const restarted = new FakePi();
+		const broker = new RpcBroker(crashed, { restartPi: async () => restarted });
+		const frames: unknown[] = [];
+		broker.addClient({ id: 'client', send: (frame) => frames.push(frame) });
+
+		await broker.handleClientFrame('client', command('restart', 'restart_pi'));
+		await broker.handleClientFrame('client', command('state-after-restart', 'get_state'));
+
+		expect(crashed.writes).toEqual([]);
+		expect(restarted.writes).toHaveLength(1);
+		expect(restarted.writes[0]).toMatchObject({ type: 'get_state' });
+		expect(frames).toContainEqual({ kind: 'server_status', status: 'pi_restarted' });
+		expect(frames).toContainEqual({
+			kind: 'response',
+			id: 'restart',
+			command: 'restart_pi',
+			success: true
+		});
 	});
 
 	it('serves session lists internally without forwarding them to Pi', async () => {

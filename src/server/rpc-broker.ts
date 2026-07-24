@@ -21,6 +21,7 @@ export interface BrokerClient {
 
 export interface RpcBrokerOptions {
 	sessionList?: SessionListProvider;
+	restartPi?: () => Promise<PiRpcTransport>;
 }
 
 export interface PiRpcTransport {
@@ -144,17 +145,25 @@ export class RpcBroker {
 	private readonly pending = new Map<string, PendingRequest>();
 	private readonly snapshots = new Map<string, JsonValue>();
 	private nextRequestNumber = 0;
-	private readonly detach: Array<() => void>;
+	private detach: Array<() => void> = [];
 	private readonly eventBatcher: EventBatcher;
+	private pi: PiRpcTransport;
 
 	constructor(
-		private readonly pi: PiRpcTransport | PiProcess,
+		pi: PiRpcTransport | PiProcess,
 		private readonly options: RpcBrokerOptions = {}
 	) {
+		this.pi = pi;
 		this.eventBatcher = new EventBatcher((events) => {
 			if (events.length === 1) this.broadcast({ kind: 'event', event: events[0] });
 			else this.broadcast({ kind: 'events', events });
 		});
+		this.bindPi(pi);
+	}
+
+	private bindPi(pi: PiRpcTransport): void {
+		for (const unsubscribe of this.detach) unsubscribe();
+		this.pi = pi;
 		this.detach = [
 			pi.onRecord((record) => this.handlePiRecord(record)),
 			pi.onProtocolError((error) => this.broadcastStatus('pi_unavailable', error.message)),
@@ -204,7 +213,37 @@ export class RpcBroker {
 			await this.handleSessionListRequest(clientId, frame);
 			return;
 		}
+		if (frame.command === 'restart_pi') {
+			await this.handleRestartRequest(clientId, frame);
+			return;
+		}
 		await this.forwardCommand(clientId, frame);
+	}
+
+	private async handleRestartRequest(clientId: string, frame: CommandFrame): Promise<void> {
+		if (!this.options.restartPi) {
+			this.failure(clientId, frame.id, frame.command, new Error('Pi restart is not configured.'));
+			return;
+		}
+		try {
+			this.announceStatus('pi_starting', 'Restarting Pi…');
+			const pi = await this.options.restartPi();
+			this.bindPi(pi);
+			this.broadcast({ kind: 'server_status', status: 'pi_restarted' });
+			await this.refreshSessionList();
+			this.send(clientId, {
+				kind: 'response',
+				id: frame.id,
+				command: frame.command,
+				success: true
+			});
+		} catch (error) {
+			this.failure(clientId, frame.id, frame.command, error);
+			this.broadcastStatus(
+				'pi_unavailable',
+				error instanceof Error ? error.message : String(error)
+			);
+		}
 	}
 
 	private async handleSessionListRequest(clientId: string, frame: CommandFrame): Promise<void> {

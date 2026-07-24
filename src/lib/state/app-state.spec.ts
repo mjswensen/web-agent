@@ -60,6 +60,20 @@ describe('extension UI state', () => {
 		expect(app.extension.toasts).toHaveLength(1);
 	});
 
+	it('preserves the socket state while surfacing Pi recovery status', () => {
+		const app = new AppState();
+		app.setConnection('connected');
+		app.receive({
+			kind: 'server_status',
+			status: 'pi_unavailable',
+			message: 'Pi exited (code 1).'
+		});
+		expect(app.connection.status).toBe('connected');
+		expect(app.pi).toEqual({ available: false, message: 'Pi exited (code 1).' });
+		app.receive({ kind: 'server_status', status: 'pi_restarted' });
+		expect(app.pi).toEqual({ available: true });
+	});
+
 	it('reads command and model snapshots for the respective dialogs', () => {
 		const app = new AppState();
 		app.receive({

@@ -837,7 +837,7 @@ Implement in vertical slices to keep the agent bridge testable:
 5. [x] Add tool cards, thinking blocks, batching, queue display, footer stats, and collapse controls.
 6. [x] Add commands palette, model/thinking controls, compaction UI, and extension UI host.
 7. [x] Add session SDK list, session drawer, switch/new/rename/fork/clone flows, and view-only tree.
-8. [ ] Add mobile responsive refinement, recovery states, and happy-path E2E coverage.
+8. [x] Add mobile responsive refinement, recovery states, and happy-path E2E coverage.
 9. [ ] Finish README usage/install/security documentation and MIT license file.
 
 ## 20. Verification checklist

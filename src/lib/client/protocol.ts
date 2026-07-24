@@ -29,7 +29,8 @@ export const browserCommands = [
 	'get_tree',
 	'set_session_name',
 	'get_session_stats',
-	'get_session_list'
+	'get_session_list',
+	'restart_pi'
 ] as const;
 
 export type BrowserCommand = (typeof browserCommands)[number];

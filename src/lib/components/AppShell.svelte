@@ -8,8 +8,10 @@
 	import Editor from './Editor.svelte';
 	import ExtensionDialogHost from './ExtensionDialogHost.svelte';
 	import Footer from './Footer.svelte';
+	import MobileActionSheet from './MobileActionSheet.svelte';
 	import ModelDialog from './ModelDialog.svelte';
 	import QueuePanel from './QueuePanel.svelte';
+	import RecoveryPanel from './RecoveryPanel.svelte';
 	import SessionDrawer from './SessionDrawer.svelte';
 	import SessionTreeDrawer from './SessionTreeDrawer.svelte';
 	import ThinkingDialog from './ThinkingDialog.svelte';
@@ -72,6 +74,11 @@
 				</div>
 			</div>
 			<div class="flex items-center gap-3 text-right text-[11px] leading-5 text-slate-500">
+				<button
+					type="button"
+					class="min-h-11 rounded px-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 focus:ring-2 focus:ring-blue-500 focus:outline-none sm:hidden"
+					onclick={() => (app.layout.mobileActionsOpen = true)}>Menu</button
+				>
 				<div class="hidden gap-1 sm:flex">
 					<button
 						type="button"
@@ -144,6 +151,7 @@
 		</div>
 	</header>
 
+	<RecoveryPanel {app} {client} />
 	<Conversation state={app} />
 	<WidgetRegion widgets={app.widgetsAboveEditor} />
 	<QueuePanel {app} />
@@ -159,4 +167,5 @@
 	<ToastHost {app} />
 	<SessionDrawer {app} {client} />
 	<SessionTreeDrawer {app} {client} />
+	<MobileActionSheet {app} {client} />
 </div>

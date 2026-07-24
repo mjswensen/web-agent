@@ -200,6 +200,8 @@ export class WebAgentWebSocketClient {
 			this.options.state.receive(frame);
 			if (needsFooterRefresh(frame)) void this.refreshFooter();
 			if (needsSessionRefresh(frame)) void this.refreshSession();
+			if (frame.kind === 'server_status' && frame.status === 'pi_restarted')
+				void this.refreshSession();
 			if (frame.kind === 'response') this.pendingResponse(frame);
 			if (frame.kind === 'pong') {
 				this.pending
