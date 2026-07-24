@@ -1,0 +1,16 @@
+{
+	"extends": "./tsconfig.json",
+	"compilerOptions": {
+		"module": "NodeNext",
+		"moduleResolution": "NodeNext",
+		"rootDir": "./src",
+		"outDir": "./build/server-runtime",
+		"noEmit": false,
+		"declaration": false,
+		"sourceMap": false,
+		"allowJs": false,
+		"checkJs": false
+	},
+	"include": ["src/server/**/*.ts", "src/lib/client/protocol.ts"],
+	"exclude": ["src/**/*.spec.ts", "src/**/*.test.ts"]
+}

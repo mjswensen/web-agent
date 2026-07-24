@@ -19,6 +19,22 @@ export interface WebAgentRuntime extends WebAgentHttpServer {
 	supervisor: PiSupervisor;
 }
 
+/** Bind the requested port, moving upward when a local port is already occupied. */
+export async function listenOnAvailablePort(
+	http: Pick<WebAgentHttpServer, 'listen'>,
+	host: string,
+	requestedPort: number
+): Promise<AddressInfo> {
+	for (let port = requestedPort; port <= 65_535; port += 1) {
+		try {
+			return await http.listen(host, port);
+		} catch (error) {
+			if ((error as NodeJS.ErrnoException).code !== 'EADDRINUSE' || port === 65_535) throw error;
+		}
+	}
+	throw new Error('No available local TCP port was found.');
+}
+
 /**
  * Creates the single HTTP server that serves SvelteKit and upgrades `/ws`.
  * The production entry point supplies adapter-node's generated request handler;
