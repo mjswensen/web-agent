@@ -14,7 +14,7 @@
 	"scripts": {
 		"dev": "vite dev --port 5100",
 		"build": "vite build && tsc -p tsconfig.server.json",
-		"prepack": "npm run build",
+		"prepack": "npm run precommit && npm run build",
 		"start": "node build/server-runtime/server/entry.js",
 		"precommit": "npm run build && npm run check && npm run lint && npm run test",
 		"preview": "vite preview",
