@@ -1,6 +1,9 @@
 <script lang="ts">
 	import type { WebAgentWebSocketClient } from '$lib/client/ws-client';
 	import type { AppState } from '$lib/state/app-state.svelte';
+	import Button from './core/Button.svelte';
+	import DialogHeader from './core/DialogHeader.svelte';
+	import DialogShell from './core/DialogShell.svelte';
 
 	const defaultLevels = ['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'];
 	let { app, client }: { app: AppState; client: WebAgentWebSocketClient | undefined } = $props();
@@ -34,37 +37,24 @@
 </script>
 
 {#if app.layout.thinkingDialogOpen}
-	<div
-		class="fixed inset-0 z-30 grid place-items-end bg-slate-950/30 p-3 sm:place-items-center"
-		role="presentation"
-	>
-		<div
-			class="w-full max-w-md overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl"
-			role="dialog"
-			aria-modal="true"
-			aria-label="Thinking level"
+	<DialogShell maxWidth="md" ariaLabel="Thinking level">
+		<DialogHeader
+			title="Thinking level"
+			description="Pi may reject levels unsupported by the active model."
 		>
-			<header class="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-				<div>
-					<h2 class="text-base font-semibold text-slate-900">Thinking level</h2>
-					<p class="mt-1 text-xs text-slate-500">
-						Pi may reject levels unsupported by the active model.
-					</p>
-				</div>
-				<button
-					type="button"
-					class="min-h-9 rounded px-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 focus:ring-2 focus:ring-slate-500 focus:outline-none"
-					onclick={() => (app.layout.thinkingDialogOpen = false)}>Close</button
+			{#snippet actions()}
+				<Button variant="muted" size="sm" onclick={() => (app.layout.thinkingDialogOpen = false)}
+					>Close</Button
 				>
-			</header>
-			<div class="grid gap-1 p-3">
-				{#each levels as level (level)}<button
-						type="button"
-						class={`min-h-11 rounded-lg px-3 text-left text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none ${app.footer.thinking === level ? 'bg-blue-50 font-semibold text-blue-800' : 'text-slate-800 hover:bg-slate-100'}`}
-						onclick={() => void choose(level)}
-						disabled={selecting !== undefined}>{selecting === level ? 'Applying…' : level}</button
-					>{/each}
-			</div>
+			{/snippet}
+		</DialogHeader>
+		<div class="grid gap-1 p-3">
+			{#each levels as level (level)}<button
+					type="button"
+					class={`min-h-11 rounded-lg px-3 text-left text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none ${app.footer.thinking === level ? 'bg-blue-50 font-semibold text-blue-800' : 'text-slate-800 hover:bg-slate-100'}`}
+					onclick={() => void choose(level)}
+					disabled={selecting !== undefined}>{selecting === level ? 'Applying…' : level}</button
+				>{/each}
 		</div>
-	</div>
+	</DialogShell>
 {/if}

@@ -1,6 +1,8 @@
 <script lang="ts">
 	import type { WebAgentWebSocketClient } from '$lib/client/ws-client';
 	import type { AppState } from '$lib/state/app-state.svelte';
+	import Button from './core/Button.svelte';
+	import Textarea from './core/Textarea.svelte';
 
 	let { app, client }: { app: AppState; client: WebAgentWebSocketClient | undefined } = $props();
 
@@ -75,43 +77,38 @@
 			}}
 		>
 			<label class="sr-only" for="prompt-editor">Message Pi</label>
-			<textarea
+			<Textarea
 				id="prompt-editor"
 				bind:value={app.editorText}
 				oninput={(event) => {
 					if (event.currentTarget.value.startsWith('/')) app.layout.commandPaletteOpen = true;
 				}}
-				rows="3"
+				rows={3}
 				placeholder={app.isAgentActive
 					? 'Steer the current run…'
 					: 'Describe the task you want Pi to do…'}
-				class="min-h-24 flex-1 resize-y rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm leading-6 text-slate-900 transition outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 disabled:cursor-not-allowed disabled:bg-slate-100"
-				disabled={!isConnected}></textarea>
+				class="min-h-24 flex-1 resize-y bg-slate-50 transition outline-none placeholder:text-slate-400 disabled:cursor-not-allowed disabled:bg-slate-100"
+				disabled={!isConnected}
+			/>
 			<div class="flex flex-col gap-2">
-				<button
-					type="submit"
-					class="min-h-11 min-w-24 rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-300"
-					disabled={!canSend}
-				>
+				<Button type="submit" variant="primary" size="touch" class="min-w-24" disabled={!canSend}>
 					{sending ? 'Sending…' : action}
-				</button>
+				</Button>
 				{#if app.isAgentActive}
-					<button
-						type="button"
-						class="min-h-11 min-w-24 rounded-lg border border-blue-200 bg-blue-50 px-4 text-sm font-semibold text-blue-700 transition hover:bg-blue-100 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+					<Button
+						variant="soft-blue"
+						size="touch"
+						class="min-w-24"
 						onclick={() => void queueFollowUp()}
-						disabled={!canSend}
+						disabled={!canSend}>Follow-up</Button
 					>
-						Follow-up
-					</button>
-					<button
-						type="button"
-						class="min-h-11 min-w-24 rounded-lg border border-red-200 bg-red-50 px-4 text-sm font-semibold text-red-700 transition hover:bg-red-100 focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+					<Button
+						variant="soft-red"
+						size="touch"
+						class="min-w-24"
 						onclick={() => void abort()}
-						disabled={!isConnected}
+						disabled={!isConnected}>Abort</Button
 					>
-						Abort
-					</button>
 				{/if}
 			</div>
 		</form>

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { WebAgentWebSocketClient } from '$lib/client/ws-client';
 	import type { AppState } from '$lib/state/app-state.svelte';
+	import Button from './core/Button.svelte';
 
 	let { app, client }: { app: AppState; client: WebAgentWebSocketClient | undefined } = $props();
 	let restarting = $state(false);
@@ -28,12 +29,13 @@
 			{app.pi.message ??
 				'The Pi child process stopped. Your visible conversation has been preserved.'}
 		</p>
-		<button
-			type="button"
-			class="mt-3 min-h-11 rounded-lg bg-red-700 px-4 text-sm font-semibold text-white hover:bg-red-800 focus:ring-2 focus:ring-red-600 focus:ring-offset-2 focus:outline-none disabled:bg-red-300"
+		<Button
+			variant="danger"
+			size="touch"
+			class="mt-3"
 			onclick={() => void restart()}
 			disabled={restarting || app.connection.status !== 'connected'}
-			>{restarting ? 'Restarting Pi…' : 'Restart Pi'}</button
+			>{restarting ? 'Restarting Pi…' : 'Restart Pi'}</Button
 		>
 	</section>
 {/if}

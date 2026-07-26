@@ -17,6 +17,7 @@
 	import ThinkingDialog from './ThinkingDialog.svelte';
 	import ToastHost from './ToastHost.svelte';
 	import WidgetRegion from './WidgetRegion.svelte';
+	import Button from './core/Button.svelte';
 
 	const app = getAppState();
 	let client = $state<WebAgentWebSocketClient | undefined>(undefined);
@@ -74,68 +75,43 @@
 				</div>
 			</div>
 			<div class="flex items-center gap-3 text-right text-[11px] leading-5 text-slate-500">
-				<button
-					type="button"
-					class="min-h-11 rounded px-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 focus:ring-2 focus:ring-blue-500 focus:outline-none sm:hidden"
-					onclick={() => (app.layout.mobileActionsOpen = true)}>Menu</button
+				<Button
+					variant="ghost"
+					size="touch"
+					class="px-2 font-semibold text-slate-700 sm:hidden"
+					onclick={() => (app.layout.mobileActionsOpen = true)}>Menu</Button
 				>
 				<div class="hidden gap-1 sm:flex">
-					<button
-						type="button"
-						class="min-h-9 rounded px-2 hover:bg-slate-100 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-						onclick={openSessions}
+					<Button size="toolbar" variant="ghost" onclick={openSessions}>Sessions</Button>
+					<Button size="toolbar" variant="ghost" onclick={openTree}>Tree</Button>
+					<Button
+						size="toolbar"
+						variant="ghost"
+						onclick={() => (app.layout.commandPaletteOpen = true)}>Commands</Button
 					>
-						Sessions
-					</button>
-					<button
-						type="button"
-						class="min-h-9 rounded px-2 hover:bg-slate-100 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-						onclick={openTree}
+					<Button size="toolbar" variant="ghost" onclick={openModelDialog}>Model</Button>
+					<Button
+						size="toolbar"
+						variant="ghost"
+						onclick={() => (app.layout.thinkingDialogOpen = true)}>Think</Button
 					>
-						Tree
-					</button>
-					<button
-						type="button"
-						class="min-h-9 rounded px-2 hover:bg-slate-100 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-						onclick={() => (app.layout.commandPaletteOpen = true)}
+					<Button
+						size="toolbar"
+						variant="ghost"
+						onclick={() => (app.layout.compactDialogOpen = true)}>Compact</Button
 					>
-						Commands
-					</button>
-					<button
-						type="button"
-						class="min-h-9 rounded px-2 hover:bg-slate-100 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-						onclick={openModelDialog}
-					>
-						Model
-					</button>
-					<button
-						type="button"
-						class="min-h-9 rounded px-2 hover:bg-slate-100 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-						onclick={() => (app.layout.thinkingDialogOpen = true)}
-					>
-						Think
-					</button>
-					<button
-						type="button"
-						class="min-h-9 rounded px-2 hover:bg-slate-100 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-						onclick={() => (app.layout.compactDialogOpen = true)}
-					>
-						Compact
-					</button>
-					<button
-						type="button"
-						class="min-h-9 rounded px-2 hover:bg-slate-100 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+					<Button
+						size="toolbar"
+						variant="ghost"
 						onclick={() => app.setThinkingExpanded(!app.layout.thinkingExpanded)}
+						>{app.layout.thinkingExpanded ? 'Hide thinking' : 'Show thinking'}</Button
 					>
-						{app.layout.thinkingExpanded ? 'Hide thinking' : 'Show thinking'}
-					</button>
-					<button
-						type="button"
-						class="min-h-9 rounded px-2 hover:bg-slate-100 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+					<Button
+						size="toolbar"
+						variant="ghost"
 						onclick={() => app.setToolsExpanded(!app.layout.toolsExpanded)}
+						>{app.layout.toolsExpanded ? 'Collapse tools' : 'Expand tools'}</Button
 					>
-						{app.layout.toolsExpanded ? 'Collapse tools' : 'Expand tools'}
-					</button>
 				</div>
 				<div>
 					<p>{app.sessionName ?? 'New session'}</p>

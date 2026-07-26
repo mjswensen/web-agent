@@ -1,6 +1,9 @@
 <script lang="ts">
 	import type { WebAgentWebSocketClient } from '$lib/client/ws-client';
 	import type { AppState } from '$lib/state/app-state.svelte';
+	import Button from './core/Button.svelte';
+	import DialogHeader from './core/DialogHeader.svelte';
+	import DialogShell from './core/DialogShell.svelte';
 
 	let { app, client }: { app: AppState; client: WebAgentWebSocketClient | undefined } = $props();
 	let selecting = $state<string | undefined>(undefined);
@@ -45,64 +48,50 @@
 </script>
 
 {#if app.layout.modelDialogOpen}
-	<div
-		class="fixed inset-0 z-30 grid place-items-end bg-slate-950/30 p-3 sm:place-items-center"
-		role="presentation"
-	>
-		<div
-			class="w-full max-w-2xl overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl"
-			role="dialog"
-			aria-modal="true"
-			aria-label="Model selection"
+	<DialogShell maxWidth="2xl" ariaLabel="Model selection">
+		<DialogHeader
+			title="Select model"
+			description="The active model changes for every connected tab."
 		>
-			<header class="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-				<div>
-					<h2 class="text-base font-semibold text-slate-900">Select model</h2>
-					<p class="mt-1 text-xs text-slate-500">
-						The active model changes for every connected tab.
-					</p>
-				</div>
-				<div class="flex gap-1">
-					<button
-						type="button"
-						class="min-h-9 rounded px-2 text-xs font-semibold text-blue-700 hover:bg-blue-50 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-						onclick={() => void refresh()}>Refresh</button
-					><button
-						type="button"
-						class="min-h-9 rounded px-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 focus:ring-2 focus:ring-slate-500 focus:outline-none"
-						onclick={() => (app.layout.modelDialogOpen = false)}>Close</button
-					>
-				</div>
-			</header>
-			<div class="max-h-[65vh] overflow-y-auto p-3">
-				{#if groups.length === 0}<p class="px-2 py-8 text-center text-sm text-slate-500">
-						No models loaded yet. Select Refresh to fetch them.
-					</p>{/if}
-				{#each groups as [provider, models] (provider)}
-					<section class="mb-4">
-						<h3 class="px-2 text-[11px] font-semibold tracking-[0.12em] text-slate-500 uppercase">
-							{provider}
-						</h3>
-						<div class="mt-2 grid gap-1">
-							{#each models as model (typeof model.id === 'string' ? model.id : JSON.stringify(model))}<button
-									type="button"
-									class="flex min-h-12 items-center justify-between rounded-lg px-3 text-left hover:bg-blue-50 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-									onclick={() => void choose(model)}
-									disabled={selecting !== undefined}
-									><span class="text-sm font-medium text-slate-800"
-										>{typeof model.name === 'string'
-											? model.name
-											: typeof model.id === 'string'
-												? model.id
-												: 'Model'}</span
-									><span class="ml-4 text-xs text-slate-500"
-										>{selecting === `${model.provider}/${model.id}` ? 'Selecting…' : model.id}</span
-									></button
-								>{/each}
-						</div>
-					</section>
-				{/each}
-			</div>
+			{#snippet actions()}
+				<Button
+					variant="ghost"
+					size="sm"
+					class="font-semibold text-blue-700 hover:bg-blue-50"
+					onclick={() => void refresh()}>Refresh</Button
+				><Button variant="muted" size="sm" onclick={() => (app.layout.modelDialogOpen = false)}
+					>Close</Button
+				>
+			{/snippet}
+		</DialogHeader>
+		<div class="max-h-[65vh] overflow-y-auto p-3">
+			{#if groups.length === 0}<p class="px-2 py-8 text-center text-sm text-slate-500">
+					No models loaded yet. Select Refresh to fetch them.
+				</p>{/if}
+			{#each groups as [provider, models] (provider)}
+				<section class="mb-4">
+					<h3 class="px-2 text-[11px] font-semibold tracking-[0.12em] text-slate-500 uppercase">
+						{provider}
+					</h3>
+					<div class="mt-2 grid gap-1">
+						{#each models as model (typeof model.id === 'string' ? model.id : JSON.stringify(model))}<button
+								type="button"
+								class="flex min-h-12 items-center justify-between rounded-lg px-3 text-left hover:bg-blue-50 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+								onclick={() => void choose(model)}
+								disabled={selecting !== undefined}
+								><span class="text-sm font-medium text-slate-800"
+									>{typeof model.name === 'string'
+										? model.name
+										: typeof model.id === 'string'
+											? model.id
+											: 'Model'}</span
+								><span class="ml-4 text-xs text-slate-500"
+									>{selecting === `${model.provider}/${model.id}` ? 'Selecting…' : model.id}</span
+								></button
+							>{/each}
+					</div>
+				</section>
+			{/each}
 		</div>
-	</div>
+	</DialogShell>
 {/if}

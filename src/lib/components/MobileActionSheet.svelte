@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { WebAgentWebSocketClient } from '$lib/client/ws-client';
 	import type { AppState } from '$lib/state/app-state.svelte';
+	import Button from './core/Button.svelte';
 
 	let { app, client }: { app: AppState; client: WebAgentWebSocketClient | undefined } = $props();
 
@@ -33,30 +34,36 @@
 			class="absolute right-3 bottom-3 left-3 rounded-xl border border-slate-200 bg-white p-3 shadow-2xl"
 		>
 			<div class="grid grid-cols-2 gap-2 text-sm">
-				<button
-					type="button"
-					class="min-h-11 rounded-lg border border-slate-300 text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-					onclick={() => open('sessionDrawerOpen')}>Sessions</button
-				><button
-					type="button"
-					class="min-h-11 rounded-lg border border-slate-300 text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-					onclick={() => open('treeDrawerOpen')}>Tree</button
-				><button
-					type="button"
-					class="min-h-11 rounded-lg border border-slate-300 text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-					onclick={() => open('modelDialogOpen')}>Model</button
-				><button
-					type="button"
-					class="min-h-11 rounded-lg border border-slate-300 text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-					onclick={() => open('thinkingDialogOpen')}>Thinking</button
-				><button
-					type="button"
-					class="min-h-11 rounded-lg border border-slate-300 text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-					onclick={() => open('compactDialogOpen')}>Compact</button
-				><button
-					type="button"
-					class="min-h-11 rounded-lg border border-slate-300 text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-					onclick={() => open('commandPaletteOpen')}>Commands</button
+				<Button
+					variant="secondary"
+					size="touch"
+					class="text-slate-800"
+					onclick={() => open('sessionDrawerOpen')}>Sessions</Button
+				><Button
+					variant="secondary"
+					size="touch"
+					class="text-slate-800"
+					onclick={() => open('treeDrawerOpen')}>Tree</Button
+				><Button
+					variant="secondary"
+					size="touch"
+					class="text-slate-800"
+					onclick={() => open('modelDialogOpen')}>Model</Button
+				><Button
+					variant="secondary"
+					size="touch"
+					class="text-slate-800"
+					onclick={() => open('thinkingDialogOpen')}>Thinking</Button
+				><Button
+					variant="secondary"
+					size="touch"
+					class="text-slate-800"
+					onclick={() => open('compactDialogOpen')}>Compact</Button
+				><Button
+					variant="secondary"
+					size="touch"
+					class="text-slate-800"
+					onclick={() => open('commandPaletteOpen')}>Commands</Button
 				>
 			</div>
 		</div>
