@@ -1,5 +1,3 @@
-import { isIP } from 'node:net';
-
 export const DEFAULT_PORT = 3000;
 export const DEFAULT_HOST = '127.0.0.1';
 
@@ -42,18 +40,6 @@ const piFlagOptions = new Map<string, string>([
 	['-r', '--resume'],
 	['--no-session', '--no-session']
 ]);
-
-/**
- * Returns true only for addresses that cannot expose the agent outside the
- * local machine. Web Agent intentionally has no public-listener mode.
- */
-export function isLoopbackHost(host: string): boolean {
-	const normalized = host.trim().toLowerCase();
-	if (normalized === 'localhost' || normalized === '::1') return true;
-
-	const ipVersion = isIP(normalized);
-	return ipVersion === 4 && normalized.split('.')[0] === '127';
-}
 
 export function parsePort(value: string): number {
 	if (!/^\d+$/.test(value)) {
@@ -137,12 +123,6 @@ export function parseCliArgs(
 	}
 
 	const port = parsePort(portValue);
-	if (!isLoopbackHost(host)) {
-		throw new CliError(
-			`Refusing non-loopback host "${host}". Web Agent controls a local filesystem agent and must bind to a loopback address.`
-		);
-	}
-
 	return { port, host, open, piPath, piArgs, sessionDir };
 }
 
@@ -153,11 +133,9 @@ export function buildPiArguments(options: Pick<WebAgentCliOptions, 'piArgs'>): s
 
 export const CLI_HELP = `Usage: web-agent [options]
 
-Web Agent binds to a loopback address only because it controls a local Pi agent.
-
 Options:
   --port <number>        Requested HTTP port (default: PI_WEB_PORT or ${DEFAULT_PORT})
-  --host, --bind <addr>  Loopback address (default: ${DEFAULT_HOST})
+  --host, --bind <addr>  Listen address (default: ${DEFAULT_HOST})
   --open                 Open the selected URL after startup
   --pi <path>            Pi executable (otherwise PI_BIN, then PATH)
 

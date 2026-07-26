@@ -1,15 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import {
-	buildPiArguments,
-	CliError,
-	DEFAULT_HOST,
-	DEFAULT_PORT,
-	isLoopbackHost,
-	parseCliArgs
-} from './cli.js';
+import { buildPiArguments, DEFAULT_HOST, DEFAULT_PORT, parseCliArgs } from './cli.js';
 
 describe('Web Agent CLI parsing', () => {
-	it('uses local, safe defaults', () => {
+	it('uses loopback defaults', () => {
 		const options = parseCliArgs([], {});
 		expect(options).toEqual({
 			port: DEFAULT_PORT,
@@ -26,12 +19,10 @@ describe('Web Agent CLI parsing', () => {
 		expect(parseCliArgs(['--port', '9876'], { PI_WEB_PORT: '4321' }).port).toBe(9876);
 	});
 
-	it('accepts only loopback hosts', () => {
-		expect(isLoopbackHost('localhost')).toBe(true);
-		expect(isLoopbackHost('127.100.2.3')).toBe(true);
-		expect(isLoopbackHost('::1')).toBe(true);
-		expect(isLoopbackHost('0.0.0.0')).toBe(false);
-		expect(() => parseCliArgs(['--bind', '192.168.1.10'])).toThrow(CliError);
+	it('accepts any listen address', () => {
+		expect(parseCliArgs(['--bind', '0.0.0.0']).host).toBe('0.0.0.0');
+		expect(parseCliArgs(['--host', '192.168.1.10']).host).toBe('192.168.1.10');
+		expect(parseCliArgs(['--host', '::']).host).toBe('::');
 	});
 
 	it('forwards only documented Pi startup flags and always adds RPC mode', () => {

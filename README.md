@@ -2,7 +2,7 @@
 
 Web Agent is a local, mobile-responsive browser interface for [Pi](https://pi.dev). It is a standalone Node.js package, not a Pi extension. One Web Agent server owns one long-lived `pi --mode rpc` child process and shares its active session with every connected browser tab.
 
-> **Security:** Web Agent controls an agent with local filesystem and shell access. It intentionally listens on a loopback address only. Do not expose it through a reverse proxy, tunnel, or public network interface.
+> **Security:** Web Agent controls an agent with local filesystem and shell access. It defaults to loopback, but `--host`/`--bind` can expose it on any listen address. Only bind to a reachable interface when that exposure is intended.
 
 ## Requirements
 
@@ -53,14 +53,14 @@ If no executable Pi binary is found, Web Agent exits with instructions rather th
 
 ## CLI reference
 
-| Option / environment variable           | Description                                                                   |
-| --------------------------------------- | ----------------------------------------------------------------------------- |
-| `--port <number>`                       | Requested local HTTP port. Overrides `PI_WEB_PORT`. Default: `3000`.          |
-| `PI_WEB_PORT`                           | Requested port when `--port` is omitted.                                      |
-| `--host <address>` / `--bind <address>` | Loopback address. Default: `127.0.0.1`. Only loopback addresses are accepted. |
-| `--open`                                | Open the selected URL using the operating system browser handler.             |
-| `--pi <path>`                           | Explicit Pi executable.                                                       |
-| `PI_BIN`                                | Fallback Pi executable when `--pi` is absent.                                 |
+| Option / environment variable           | Description                                                                         |
+| --------------------------------------- | ----------------------------------------------------------------------------------- |
+| `--port <number>`                       | Requested local HTTP port. Overrides `PI_WEB_PORT`. Default: `3000`.                |
+| `PI_WEB_PORT`                           | Requested port when `--port` is omitted.                                            |
+| `--host <address>` / `--bind <address>` | Listen address. Default: `127.0.0.1`. Any address supported by Node.js is accepted. |
+| `--open`                                | Open the selected URL using the operating system browser handler.                   |
+| `--pi <path>`                           | Explicit Pi executable.                                                             |
+| `PI_BIN`                                | Fallback Pi executable when `--pi` is absent.                                       |
 
 These Pi startup options are forwarded to the child, which always receives `--mode rpc`:
 
@@ -110,7 +110,7 @@ The E2E suite uses a deterministic in-browser RPC transport and does not require
 
 ## Current v1 boundaries
 
-Web Agent deliberately does not provide terminal emulation, Pi theme loading, public-network serving, file `@` completion, image attachments, user-bash mode, Pi sharing/export UI, or multiple concurrent active Pi sessions. See [`SPECIFICATION.md`](./SPECIFICATION.md) for the complete design and scope.
+Web Agent deliberately does not provide terminal emulation, Pi theme loading, file `@` completion, image attachments, user-bash mode, Pi sharing/export UI, or multiple concurrent active Pi sessions. See [`SPECIFICATION.md`](./SPECIFICATION.md) for the complete design and scope.
 
 ## License
 

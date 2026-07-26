@@ -35,7 +35,7 @@ It is **not** a terminal emulator and does not need pixel-for-pixel parity. Styl
   - Pi RPC extension UI dialogs, notifications, status entries, widgets, title changes, and editor-text updates;
   - TUI-equivalent footer metrics where RPC provides them.
 - Make the core layout mobile-responsive.
-- Bind to a loopback interface.
+- Bind to a configurable listen address, defaulting to loopback.
 - Include unit and end-to-end testing.
 - Publish under the MIT license.
 
@@ -190,16 +190,16 @@ Exact filenames may vary, but preserve these module boundaries: process/RPC brok
 
 ### 6.1 Web Agent options
 
-| Input                                   | Behavior                                                                          |
-| --------------------------------------- | --------------------------------------------------------------------------------- |
-| `--port <number>`                       | Requested HTTP port. Overrides `PI_WEB_PORT`.                                     |
-| `PI_WEB_PORT`                           | Requested HTTP port when `--port` is absent.                                      |
-| no port input                           | Request port `3000`.                                                              |
-| occupied requested port                 | Bind the first available port and print the selected URL.                         |
-| `--open`                                | Open the selected URL in the default browser after startup. Default: do not open. |
-| `--host <address>` / `--bind <address>` | Loopback listen address. Default: `127.0.0.1`                                     |
-| `--pi <path>`                           | Explicit Pi executable path.                                                      |
-| `PI_BIN`                                | Pi executable fallback when `--pi` is absent.                                     |
+| Input                                   | Behavior                                                                            |
+| --------------------------------------- | ----------------------------------------------------------------------------------- |
+| `--port <number>`                       | Requested HTTP port. Overrides `PI_WEB_PORT`.                                       |
+| `PI_WEB_PORT`                           | Requested HTTP port when `--port` is absent.                                        |
+| no port input                           | Request port `3000`.                                                                |
+| occupied requested port                 | Bind the first available port and print the selected URL.                           |
+| `--open`                                | Open the selected URL in the default browser after startup. Default: do not open.   |
+| `--host <address>` / `--bind <address>` | Listen address. Default: `127.0.0.1`; any address supported by Node.js is accepted. |
+| `--pi <path>`                           | Explicit Pi executable path.                                                        |
+| `PI_BIN`                                | Pi executable fallback when `--pi` is absent.                                       |
 
 The server prints its final listening URL.
 
@@ -238,9 +238,7 @@ The child's `cwd` is Web Agent's launch directory (`process.cwd()`). This is the
 
 ## 7. Security model
 
-Web Agent is intended to be used local-only. Do not enable permissive CORS.
-
-The UI controls an agent with filesystem and shell access, so a loopback-only listener is important. No need to enforce this at the application level, but a clear warning in the docs or source code is warranted.
+Web Agent controls an agent with filesystem and shell access. It defaults to loopback, but operators may intentionally bind it to another interface. Do not enable permissive CORS, and document the security implications of non-loopback binding.
 
 ## 8. Pi RPC bridge
 
@@ -784,7 +782,7 @@ Use a current Node-compatible test runner (Vitest is recommended for a SvelteKit
 
 - strict LF-only JSONL reader, including chunk boundaries, CRLF, Unicode line separators inside JSON strings, invalid JSON, and final-buffer handling;
 - Pi binary resolution precedence: `--pi`, `PI_BIN`, then `PATH`;
-- CLI port and loopback-host validation and forwarding of Pi arguments;
+- CLI port and host forwarding and forwarding of Pi arguments;
 - RPC ID correlation and response routing;
 - 16 ms batching/coalescing behavior, especially cumulative `tool_execution_update` replacement;
 - server-side session-list adapter argument handling;
@@ -831,7 +829,7 @@ Potential future work, deliberately excluded from v1:
 Implement in vertical slices to keep the agent bridge testable:
 
 1. [x] Initialize SvelteKit + adapter-node + Tailwind + TypeScript project and build/start scripts.
-2. [x] Implement CLI parsing, loopback security defaults, Pi resolution, child lifecycle, and strict JSONL bridge with unit tests.
+2. [x] Implement CLI parsing, loopback security defaults, configurable host binding, Pi resolution, child lifecycle, and strict JSONL bridge with unit tests.
 3. [x] Implement `/ws`, browser protocol validation, RPC correlation, broadcast state, and the client-scoped connection state.
 4. [x] Implement main shell, bootstrap/reconnect, basic prompt streaming, abort, and conversation reducer.
 5. [x] Add tool cards, thinking blocks, batching, queue display, footer stats, and collapse controls.

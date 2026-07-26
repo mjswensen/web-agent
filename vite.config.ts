@@ -1,7 +1,6 @@
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig, type Plugin } from 'vitest/config';
 import { playwright } from '@vitest/browser-playwright';
-import { isLoopbackHost } from './src/server/cli.js';
 import { attachWebAgentRuntime } from './src/server/main.js';
 import adapter from '@sveltejs/adapter-node';
 import { sveltekit } from '@sveltejs/kit/vite';
@@ -13,11 +12,6 @@ function webAgentRuntime(): Plugin {
 		async configureServer(vite) {
 			// Vitest creates a middleware-only Vite server with no HTTP listener.
 			if (!vite.httpServer) return;
-			const host = vite.config.server.host;
-			if (host === true || (typeof host === 'string' && !isLoopbackHost(host))) {
-				throw new Error('Web Agent must bind Vite to a loopback address.');
-			}
-
 			const runtime = await attachWebAgentRuntime(vite.httpServer, {
 				argv: [],
 				cwd: process.cwd()
