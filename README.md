@@ -94,7 +94,7 @@ npm install
 npm run dev
 ```
 
-`npm run dev` starts the Vite/Svelte development UI. For the full Node/Pi runtime, use `npm run build && npm start`.
+`npm run dev` starts the Vite/Svelte development UI and attaches the Pi/WebSocket runtime to Vite's HTTP server. For the production adapter-node runtime, use `npm run build && npm start`.
 
 Useful checks:
 

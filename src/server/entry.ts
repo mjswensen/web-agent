@@ -1,25 +1,22 @@
 #!/usr/bin/env node
 import { spawn } from 'node:child_process';
 import process from 'node:process';
-import { handler } from './build/handler.js';
-import { CLI_HELP, parseCliArgs } from './build/server-runtime/server/cli.js';
-import {
-	createWebAgentRuntime,
-	listenOnAvailablePort
-} from './build/server-runtime/server/main.js';
+import type { AddressInfo } from 'node:net';
+import { CLI_HELP, parseCliArgs } from './cli.js';
+import { createWebAgentRuntime, listenOnAvailablePort } from './main.js';
 
-function localUrl(host, port) {
+function localUrl(host: string, port: number): string {
 	return `http://${host.includes(':') ? `[${host}]` : host}:${port}`;
 }
 
-function openBrowser(url) {
-	const command =
+function openBrowser(url: string): void {
+	const command: { executable: string; args: string[] } =
 		process.platform === 'darwin'
-			? ['open', [url]]
+			? { executable: 'open', args: [url] }
 			: process.platform === 'win32'
-				? ['cmd', ['/c', 'start', '', url]]
-				: ['xdg-open', [url]];
-	const child = spawn(command[0], command[1], { detached: true, stdio: 'ignore' });
+				? { executable: 'cmd', args: ['/c', 'start', '', url] }
+				: { executable: 'xdg-open', args: [url] };
+	const child = spawn(command.executable, command.args, { detached: true, stdio: 'ignore' });
 	child.unref();
 }
 
@@ -31,8 +28,12 @@ if (process.argv.slice(2).some((argument) => argument === '--help' || argument =
 try {
 	const argv = process.argv.slice(2);
 	const cli = parseCliArgs(argv);
+	// This file compiles to build/server-runtime/server; from there the adapter
+	// output is ../../handler.js. Dynamic loading keeps generated code out of
+	// the source TypeScript project.
+	const { handler } = await import('../../' + 'handler.js');
 	const runtime = await createWebAgentRuntime(handler, { argv, cwd: process.cwd() });
-	const address = await listenOnAvailablePort(runtime, cli.host, cli.port);
+	const address: AddressInfo = await listenOnAvailablePort(runtime, cli.host, cli.port);
 	const url = localUrl(cli.host, address.port);
 	console.log(`Web Agent listening at ${url}`);
 	if (cli.open) openBrowser(url);

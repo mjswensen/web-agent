@@ -5,7 +5,11 @@ import { type PiLifecycleOptions } from './pi-lifecycle.js';
 import { PiSupervisor } from './pi-supervisor.js';
 import { installWebSocketServer, type WebSocketHub } from './websocket.js';
 
-export type SvelteKitRequestHandler = (request: IncomingMessage, response: ServerResponse) => void;
+export type SvelteKitRequestHandler = (
+	request: IncomingMessage,
+	response: ServerResponse,
+	next?: (error?: unknown) => void
+) => void;
 
 export interface WebAgentHttpServer {
 	server: Server;
@@ -14,10 +18,14 @@ export interface WebAgentHttpServer {
 	close(): Promise<void>;
 }
 
-export interface WebAgentRuntime extends WebAgentHttpServer {
+export interface AttachedWebAgentRuntime {
 	broker: RpcBroker;
 	supervisor: PiSupervisor;
+	webSockets: WebSocketHub;
+	close(): Promise<void>;
 }
+
+export interface WebAgentRuntime extends WebAgentHttpServer, AttachedWebAgentRuntime {}
 
 /** Bind the requested port, moving upward when a local port is already occupied. */
 export async function listenOnAvailablePort(
@@ -76,6 +84,36 @@ export function createWebAgentHttpServer(
 }
 
 /**
+ * Attaches the Pi and `/ws` runtime to an HTTP server owned by another host,
+ * such as Vite in development. The caller remains responsible for closing the
+ * HTTP server; this close method only releases Web Agent resources.
+ */
+export async function attachWebAgentRuntime(
+	server: Server,
+	piOptions: PiLifecycleOptions
+): Promise<AttachedWebAgentRuntime> {
+	const supervisor = new PiSupervisor(piOptions);
+	const piProcess = await supervisor.start();
+	const broker = new RpcBroker(piProcess, {
+		sessionList: supervisor.sessionList,
+		restartPi: () => supervisor.restart()
+	});
+	const webSockets = installWebSocketServer(server, broker);
+
+	return {
+		broker,
+		supervisor,
+		webSockets,
+		close: async () => {
+			broker.announceStatus('server_shutting_down');
+			await webSockets.close();
+			await supervisor.stop(250);
+			broker.dispose();
+		}
+	};
+}
+
+/**
  * Composes the shared HTTP/WebSocket server with one restartable Pi child.
  * A production entry point supplies adapter-node's handler and this runtime
  * keeps the server alive when Pi exits so the browser can offer recovery.
@@ -85,8 +123,8 @@ export async function createWebAgentRuntime(
 	piOptions: PiLifecycleOptions
 ): Promise<WebAgentRuntime> {
 	const supervisor = new PiSupervisor(piOptions);
-	const process = await supervisor.start();
-	const broker = new RpcBroker(process, {
+	const piProcess = await supervisor.start();
+	const broker = new RpcBroker(piProcess, {
 		sessionList: supervisor.sessionList,
 		restartPi: () => supervisor.restart()
 	});

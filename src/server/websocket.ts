@@ -47,10 +47,9 @@ export function installWebSocketServer(
 	const sockets = new Set<WebSocket>();
 
 	server.on('upgrade', (request, socket, head) => {
-		if (requestPath(request) !== path) {
-			socket.destroy();
-			return;
-		}
+		// Other listeners own non-application upgrades (notably Vite's HMR
+		// WebSocket in development), so leave them untouched.
+		if (requestPath(request) !== path) return;
 		webSocketServer.handleUpgrade(request, socket, head, (webSocket) => {
 			webSocketServer.emit('connection', webSocket, request);
 		});
