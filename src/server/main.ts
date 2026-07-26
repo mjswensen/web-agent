@@ -1,4 +1,6 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
+import type { Duplex } from 'node:stream';
+import type { Buffer } from 'node:buffer';
 import type { AddressInfo } from 'node:net';
 import { RpcBroker } from './rpc-broker.js';
 import { type PiLifecycleOptions } from './pi-lifecycle.js';
@@ -89,7 +91,12 @@ export function createWebAgentHttpServer(
  * HTTP server; this close method only releases Web Agent resources.
  */
 export async function attachWebAgentRuntime(
-	server: Server,
+	server: {
+		on(
+			event: 'upgrade',
+			listener: (request: IncomingMessage, socket: Duplex, head: Buffer) => void
+		): unknown;
+	},
 	piOptions: PiLifecycleOptions
 ): Promise<AttachedWebAgentRuntime> {
 	const supervisor = new PiSupervisor(piOptions);
