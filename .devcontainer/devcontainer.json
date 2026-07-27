@@ -5,7 +5,8 @@
 	"remoteUser": "node",
 	"postCreateCommand": {
 		"install": "npm install",
+		"install-pi": "curl -fsSL https://pi.dev/install.sh | sh",
 		"playwright": "sudo npx playwright install-deps && npx playwright install"
 	},
-	"forwardPorts": [5100]
+	"appPort": ["0.0.0.0:5100:5100"]
 }

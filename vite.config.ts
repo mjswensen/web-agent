@@ -22,6 +22,10 @@ function webAgentRuntime(): Plugin {
 }
 
 export default defineConfig({
+	server: {
+		host: true,
+		allowedHosts: true
+	},
 	plugins: [
 		webAgentRuntime(),
 		tailwindcss(),

@@ -12,7 +12,7 @@
 		"LICENSE"
 	],
 	"scripts": {
-		"dev": "vite dev --port 5100",
+		"dev": "vite dev --host 0.0.0.0 --port 5100",
 		"build": "vite build && tsc -p tsconfig.server.json",
 		"prepack": "npm run precommit && npm run build",
 		"start": "node build/server-runtime/server/entry.js",
