@@ -38,6 +38,8 @@ const fakeSocket = () => {
 					...(data === undefined ? {} : { data })
 				});
 			const state = () => ({
+				cwd: '/workspaces/demo-project',
+				projectName: 'demo-project',
 				model: this.model,
 				thinkingLevel: this.thinking,
 				isStreaming: false,
@@ -222,6 +224,8 @@ test('streams a prompt, exposes tool output, and sends steering/follow-up comman
 	page
 }) => {
 	await page.goto('/');
+	await expect(page).toHaveTitle('Web Agent — demo-project');
+	await expect(page.getByText('/workspaces/demo-project')).toBeVisible();
 	const editor = page.getByLabel('Message Pi');
 	await expect(editor).toBeEnabled();
 	await editor.fill('Inspect the app');

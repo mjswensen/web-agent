@@ -21,8 +21,9 @@
 
 	const app = getAppState();
 	let client = $state<WebAgentWebSocketClient | undefined>(undefined);
-	let cwd = $derived(
-		typeof app.sessionState?.cwd === 'string' ? app.sessionState.cwd : 'local project'
+	let cwd = $derived(typeof app.sessionState?.cwd === 'string' ? app.sessionState.cwd : '');
+	let projectName = $derived(
+		typeof app.sessionState?.projectName === 'string' ? app.sessionState.projectName : undefined
 	);
 
 	function openModelDialog(): void {
@@ -48,7 +49,8 @@
 	});
 
 	$effect(() => {
-		if (app.extension.title) document.title = app.extension.title;
+		document.title =
+			app.extension.title ?? (projectName ? `Web Agent — ${projectName}` : 'Web Agent');
 	});
 </script>
 
@@ -71,7 +73,9 @@
 							class={`h-2 w-2 rounded-full ${app.connection.status === 'connected' ? 'bg-emerald-500' : app.connection.status === 'connecting' ? 'animate-pulse bg-amber-400' : 'bg-slate-400'}`}
 						></span>
 					</div>
-					<p class="max-w-58 truncate text-[11px] text-slate-500" title={cwd}>{cwd}</p>
+					<p class="max-w-58 truncate text-[11px] text-slate-500" title={cwd || undefined}>
+						{cwd || '—'}
+					</p>
 				</div>
 			</div>
 			<div class="flex items-center gap-3 text-right text-[11px] leading-5 text-slate-500">

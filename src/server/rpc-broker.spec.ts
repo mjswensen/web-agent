@@ -132,6 +132,39 @@ describe('browser protocol validation and Pi RPC broker', () => {
 		});
 	});
 
+	it('includes the launch directory in state snapshots', async () => {
+		const pi = new FakePi();
+		const broker = new RpcBroker(pi, { cwd: '/workspaces/demo-project' });
+		const frames: unknown[] = [];
+		broker.addClient({ id: 'client', send: (frame) => frames.push(frame) });
+
+		expect(frames).toContainEqual({
+			kind: 'snapshot',
+			snapshotType: 'state',
+			data: { cwd: '/workspaces/demo-project', projectName: 'demo-project' }
+		});
+
+		await broker.handleClientFrame('client', command('state-request', 'get_state'));
+		const piRequest = pi.writes[0] as { id: string };
+		pi.emitRecord({
+			id: piRequest.id,
+			type: 'response',
+			command: 'get_state',
+			success: true,
+			data: { isStreaming: false }
+		});
+
+		expect(frames).toContainEqual({
+			kind: 'snapshot',
+			snapshotType: 'state',
+			data: {
+				isStreaming: false,
+				cwd: '/workspaces/demo-project',
+				projectName: 'demo-project'
+			}
+		});
+	});
+
 	it('broadcasts events and retains successful state snapshots for reconnecting clients', async () => {
 		const pi = new FakePi();
 		const broker = new RpcBroker(pi);

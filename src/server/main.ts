@@ -102,6 +102,7 @@ export async function attachWebAgentRuntime(
 	const supervisor = new PiSupervisor(piOptions);
 	const piProcess = await supervisor.start();
 	const broker = new RpcBroker(piProcess, {
+		cwd: piOptions.cwd,
 		sessionList: supervisor.sessionList,
 		restartPi: () => supervisor.restart()
 	});
@@ -132,6 +133,7 @@ export async function createWebAgentRuntime(
 	const supervisor = new PiSupervisor(piOptions);
 	const piProcess = await supervisor.start();
 	const broker = new RpcBroker(piProcess, {
+		cwd: piOptions.cwd,
 		sessionList: supervisor.sessionList,
 		restartPi: () => supervisor.restart()
 	});

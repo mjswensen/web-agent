@@ -10,6 +10,7 @@ import type {
 	ServerFrame,
 	SnapshotFrame
 } from '../lib/client/protocol.js';
+import { projectDirectoryName } from '../lib/state/project.js';
 import { EventBatcher } from './event-batcher.js';
 import type { PiProcess } from './pi-process.js';
 import type { SessionListProvider } from './session-list.js';
@@ -20,6 +21,7 @@ export interface BrokerClient {
 }
 
 export interface RpcBrokerOptions {
+	cwd?: string;
 	sessionList?: SessionListProvider;
 	restartPi?: () => Promise<PiRpcTransport>;
 }
@@ -121,6 +123,11 @@ function isObject(value: unknown): value is Record<string, unknown> {
 	return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+function stateWithCwd(value: unknown, cwd: string | undefined): JsonValue {
+	const state = toJsonValue(value);
+	return cwd && isObject(state) ? { ...state, cwd, projectName: projectDirectoryName(cwd) } : state;
+}
+
 function isPiResponse(record: Record<string, unknown>): boolean {
 	return (
 		record.type === 'response' &&
@@ -185,6 +192,9 @@ export class RpcBroker {
 
 	addClient(client: BrokerClient): () => void {
 		this.clients.set(client.id, client);
+		if (this.options.cwd && !this.snapshots.has('state')) {
+			this.snapshots.set('state', stateWithCwd({}, this.options.cwd));
+		}
 		for (const [snapshotType, data] of this.snapshots) {
 			client.send({ kind: 'snapshot', snapshotType, data });
 		}
@@ -358,12 +368,18 @@ export class RpcBroker {
 		this.pending.delete(response.id as string);
 
 		const success = response.success === true;
+		const data =
+			response.data === undefined
+				? undefined
+				: request.browserCommand === 'get_state'
+					? stateWithCwd(response.data, this.options.cwd)
+					: toJsonValue(response.data);
 		const frame: ResponseFrame = {
 			kind: 'response',
 			id: request.browserId,
 			command: request.browserCommand,
 			success,
-			...(success && response.data !== undefined ? { data: toJsonValue(response.data) } : {}),
+			...(success && data !== undefined ? { data } : {}),
 			...(!success
 				? {
 						error: typeof response.error === 'string' ? response.error : 'Pi rejected the command.'
@@ -372,9 +388,9 @@ export class RpcBroker {
 		};
 		this.send(request.clientId, frame);
 
-		if (success && response.data !== undefined) {
+		if (success && data !== undefined) {
 			const snapshotType = snapshotTypeFor(request.browserCommand);
-			if (snapshotType) this.storeSnapshot(snapshotType, toJsonValue(response.data));
+			if (snapshotType) this.storeSnapshot(snapshotType, data);
 		}
 		if (success && shouldRefreshSessionList(request.browserCommand, response.data)) {
 			void this.refreshSessionList().catch((error: unknown) =>
