@@ -25,6 +25,24 @@
 	let projectName = $derived(
 		typeof app.sessionState?.projectName === 'string' ? app.sessionState.projectName : undefined
 	);
+	let agentStatus = $derived(
+		app.connection.status !== 'connected'
+			? app.connection.status
+			: !app.pi.available
+				? 'Agent unavailable'
+				: app.isAgentActive
+					? 'Agent working'
+					: 'Ready'
+	);
+	let agentStatusClass = $derived(
+		app.connection.status !== 'connected'
+			? 'text-slate-500 dark:text-slate-400'
+			: !app.pi.available
+				? 'text-rose-600 dark:text-rose-400'
+				: app.isAgentActive
+					? 'text-amber-600 dark:text-amber-400'
+					: 'text-emerald-600 dark:text-emerald-400'
+	);
 
 	function openModelDialog(): void {
 		app.layout.modelDialogOpen = true;
@@ -104,21 +122,20 @@
 			class="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-x-5 gap-y-2"
 		>
 			<div class="flex min-w-0 items-center gap-3">
-				<div
-					class="grid h-8 w-8 shrink-0 place-items-center rounded-md bg-slate-900 text-xs font-bold text-white"
-					aria-hidden="true"
-				>
-					π
-				</div>
 				<div class="min-w-0">
-					<div class="flex items-center gap-2">
+					<div class="mb-1.5 flex items-center gap-2">
 						<p class="text-sm font-bold tracking-tight">Web Agent</p>
 						<span
 							class={`h-2 w-2 rounded-full ${app.connection.status === 'connected' ? 'bg-emerald-500' : app.connection.status === 'connecting' ? 'animate-pulse bg-amber-400' : 'bg-slate-400'}`}
+							aria-hidden="true"
 						></span>
+						<span class={`text-[11px] font-semibold ${agentStatusClass}`}>{agentStatus}</span>
 					</div>
 					<p class="max-w-58 truncate text-[11px] text-slate-500" title={cwd || undefined}>
 						{cwd || '—'}
+					</p>
+					<p class="max-w-58 truncate text-[11px] text-slate-500" title={app.sessionName}>
+						{app.sessionName ?? 'New session'}
 					</p>
 				</div>
 			</div>
@@ -148,16 +165,6 @@
 						variant="ghost"
 						onclick={() => (app.layout.compactDialogOpen = true)}>Compact</Button
 					>
-				</div>
-				<div>
-					<p>{app.sessionName ?? 'New session'}</p>
-					<p>
-						{app.connection.status === 'connected'
-							? app.isAgentActive
-								? 'Agent working'
-								: 'Ready'
-							: app.connection.status}
-					</p>
 				</div>
 			</div>
 		</div>
