@@ -54,7 +54,7 @@ type GitStatusSnapshot =
 			branch: { name: string; detached: boolean; oid?: string };
 			refreshedAt: string;
 			files: GitFileStatus[];
-		}
+	  }
 	| { state: 'not_repository'; refreshedAt: string }
 	| { state: 'error'; refreshedAt: string; message: string };
 ```
@@ -75,6 +75,7 @@ Create `src/server/git-status.ts`, with an injectable command runner for unit te
    ```
 
    Parse the NUL-delimited format directly. It preserves paths containing spaces and newlines and identifies ordinary, rename/copy, unmerged, untracked, and ignored records. Omit ignored files from the view.
+
 3. Derive the branch from the porcelain-v2 branch records.
    - Display the current symbolic branch when available.
    - For detached HEAD, display a clear detached label plus a short OID when available.
@@ -92,6 +93,7 @@ Create `src/server/git-status.ts`, with an injectable command runner for unit te
    ```
 
    A file changed in both areas receives both patches.
+
 6. For every untracked file, generate a required preview patch against `/dev/null` with Git's no-index mode, equivalent to:
 
    ```text
@@ -101,6 +103,7 @@ Create `src/server/git-status.ts`, with an injectable command runner for unit te
    Exit code `1` is the expected “differences found” result and must be accepted. Store the output as that file's `unstagedDiff` and mark the record `untracked: true`.
 
    The provider must construct this from the status-derived path only; it must never accept a browser-provided path. For robust handling of raw/non-UTF-8 filenames, retain NUL-delimited path bytes internally and use NUL-delimited Git pathspec input where necessary, while exposing a safely escaped display path in JSON.
+
 7. Sort final records by their repository-relative display path before creating the snapshot. Preserve rename/copy source paths in `originalPath` for display.
 
 Run Git with argument arrays and `shell: false`; never interpolate a path into a shell command. Disable paging and external diff helpers (`--no-ext-diff`, `--no-color`, and a noninteractive pager environment). Bound command duration, concurrent per-file diff work, and total/per-diff output. If a limit is reached, make the affected file visibly report that its preview could not be loaded; do not silently present an incomplete patch as complete.
