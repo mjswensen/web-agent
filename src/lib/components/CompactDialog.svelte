@@ -31,12 +31,13 @@
 
 {#if app.layout.compactDialogOpen}
 	<DialogShell maxWidth="lg" ariaLabel="Compact conversation" class="p-5">
-		<h2 class="text-base font-semibold text-slate-900">Compact conversation</h2>
-		<p class="mt-2 text-sm leading-6 text-slate-600">
+		<h2 class="text-base font-semibold text-slate-900 dark:text-slate-100">Compact conversation</h2>
+		<p class="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
 			Pi will summarize prior context to make room for the next part of the session.
 		</p>
-		<label class="mt-4 block text-sm font-medium text-slate-700" for="compact-instructions"
-			>Optional instructions</label
+		<label
+			class="mt-4 block text-sm font-medium text-slate-700 dark:text-slate-200"
+			for="compact-instructions">Optional instructions</label
 		>
 		<Textarea
 			id="compact-instructions"

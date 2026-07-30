@@ -1,21 +1,19 @@
 <script lang="ts">
 	import DiffView from './DiffView.svelte';
-	import type { AppState } from '$lib/state/app-state.svelte';
 	import type { ToolExecution } from '$lib/state/event-reducer';
 
-	let { tool, app }: { tool: ToolExecution; app: AppState } = $props();
+	let { tool }: { tool: ToolExecution } = $props();
 
 	let palette = $derived(
 		tool.status === 'pending'
-			? 'border-amber-200 bg-amber-50/70 text-amber-900'
+			? 'border-amber-200 bg-amber-50/70 text-amber-900 dark:border-amber-800 dark:bg-amber-950/50 dark:text-amber-200'
 			: tool.status === 'error'
-				? 'border-red-200 bg-red-50/70 text-red-900'
-				: 'border-green-200 bg-green-50/70 text-green-900'
+				? 'border-red-200 bg-red-50/70 text-red-900 dark:border-red-800 dark:bg-red-950/50 dark:text-red-200'
+				: 'border-green-200 bg-green-50/70 text-green-900 dark:border-green-800 dark:bg-green-950/50 dark:text-green-200'
 	);
 	let statusLabel = $derived(
 		tool.status === 'pending' ? 'Running' : tool.status === 'error' ? 'Failed' : 'Done'
 	);
-	let hasDetail = $derived(Boolean(tool.args || tool.output || tool.diff));
 </script>
 
 <article
@@ -30,33 +28,23 @@
 			<strong class="truncate">{tool.name}</strong>
 			<span class="shrink-0 opacity-75">{statusLabel}</span>
 		</div>
-		{#if hasDetail && tool.status !== 'pending'}
-			<button
-				type="button"
-				class="min-h-9 shrink-0 rounded px-2 font-medium underline-offset-2 hover:underline focus:ring-2 focus:ring-current focus:outline-none"
-				onclick={() => app.setToolsExpanded(!app.layout.toolsExpanded)}
-				aria-expanded={app.layout.toolsExpanded}
-			>
-				{app.layout.toolsExpanded ? 'Collapse' : 'Expand'}
-			</button>
-		{/if}
 	</header>
 
-	{#if (app.layout.toolsExpanded || tool.status === 'pending') && hasDetail}
+	{#if tool.args || tool.output || tool.diff}
 		<div class="border-t border-current/15 px-3 py-3">
 			{#if tool.args}
 				<p class="mb-1 text-[11px] font-semibold tracking-[0.12em] uppercase opacity-70">
 					Arguments
 				</p>
 				<pre
-					class="m-0 max-h-48 overflow-auto rounded border border-slate-200 bg-white/70 px-3 py-2 text-xs leading-5 break-words whitespace-pre-wrap text-slate-800">{tool.args}</pre>
+					class="m-0 overflow-auto rounded border border-slate-200 bg-white/70 px-3 py-2 text-xs leading-5 break-words whitespace-pre-wrap text-slate-800 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-100">{tool.args}</pre>
 			{/if}
 			{#if tool.output}
 				<p class="mt-3 mb-1 text-[11px] font-semibold tracking-[0.12em] uppercase opacity-70">
 					{tool.status === 'pending' ? 'Live output' : 'Output'}
 				</p>
 				<pre
-					class="m-0 max-h-72 overflow-auto rounded border border-slate-200 bg-white/70 px-3 py-2 text-xs leading-5 break-words whitespace-pre-wrap text-slate-800">{tool.output}</pre>
+					class="m-0 overflow-auto rounded border border-slate-200 bg-white/70 px-3 py-2 text-xs leading-5 break-words whitespace-pre-wrap text-slate-800 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-100">{tool.output}</pre>
 			{/if}
 			{#if tool.diff}
 				<p class="mt-3 mb-1 text-[11px] font-semibold tracking-[0.12em] uppercase opacity-70">

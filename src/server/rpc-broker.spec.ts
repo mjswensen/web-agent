@@ -35,12 +35,20 @@ class FakePi implements PiRpcTransport {
 	}
 }
 
-function command(id: string, name: 'prompt' | 'get_state' | 'get_session_list' | 'restart_pi') {
+function command(
+	id: string,
+	name: 'prompt' | 'get_state' | 'get_session_list' | 'restart_pi' | 'set_session_name'
+) {
 	const frame = parseClientFrame({
 		kind: 'command',
 		id,
 		command: name,
-		params: name === 'prompt' ? { message: 'Hello' } : {}
+		params:
+			name === 'prompt'
+				? { message: 'Hello' }
+				: name === 'set_session_name'
+					? { name: 'Renamed session' }
+					: {}
 	});
 	if (!frame.ok || frame.frame.kind !== 'command') throw new Error('Invalid test frame.');
 	return frame.frame;
@@ -102,6 +110,33 @@ describe('browser protocol validation and Pi RPC broker', () => {
 			kind: 'response',
 			id: 'restart',
 			command: 'restart_pi',
+			success: true
+		});
+	});
+
+	it('maps session rename and refreshes the shared session list only after success', async () => {
+		const pi = new FakePi();
+		let listCalls = 0;
+		const broker = new RpcBroker(pi, {
+			sessionList: {
+				list: async () => {
+					listCalls += 1;
+					return { sessions: [{ name: 'Renamed session' }] };
+				}
+			}
+		});
+		const frames: unknown[] = [];
+		broker.addClient({ id: 'client', send: (frame) => frames.push(frame) });
+		await broker.handleClientFrame('client', command('rename', 'set_session_name'));
+		const request = pi.writes[0] as { id: string };
+		expect(request).toMatchObject({ type: 'set_session_name', name: 'Renamed session' });
+		pi.emitRecord({ type: 'response', id: request.id, success: true });
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		expect(listCalls).toBeGreaterThan(0);
+		expect(frames).toContainEqual({
+			kind: 'response',
+			id: 'rename',
+			command: 'set_session_name',
 			success: true
 		});
 	});

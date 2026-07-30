@@ -75,12 +75,12 @@ Run `web-agent --help` for the concise command-line summary.
 
 ## Using the interface
 
-- **Send** submits a prompt while Pi is idle. During an active run it becomes **Steer**.
+- **Send** submits a prompt while Pi is idle. During an active run it becomes **Steer**. On macOS, Command+Enter invokes the same action.
 - **Follow-up** queues a message for after Pi fully settles.
 - **Abort** stops active work.
 - Use the header controls (or the mobile **Menu**) for commands, models, thinking level, compaction, sessions, and the session tree.
-- Tool calls stream output live. Expand completed tools to inspect arguments, output, and edit diffs.
-- Thinking is kept separate from assistant text and is collapsed by default.
+- Tool calls stream output live with arguments, output, and edit diffs shown in full.
+- Thinking is kept separate from assistant text and shown in full.
 - All tabs see the same active session, conversation, queue, and session transitions.
 
 Saved sessions are listed from Pi's `SessionManager` for the current project only. The session tree is intentionally view-only: Pi RPC supports tree inspection and fork/clone actions, but does not expose in-place tree navigation.

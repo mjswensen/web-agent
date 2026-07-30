@@ -60,6 +60,20 @@ describe('extension UI state', () => {
 		expect(app.extension.toasts).toHaveLength(1);
 	});
 
+	it('deduplicates connection failures and removes only those toasts on recovery', () => {
+		const app = new AppState();
+		app.addToast('Unrelated extension notice');
+		app.setConnectionError('First socket failure');
+		app.setConnectionError('Second socket failure');
+		expect(app.extension.toasts).toHaveLength(2);
+		expect(app.extension.toasts.find((toast) => toast.category === 'connection')?.message).toBe(
+			'Second socket failure'
+		);
+		app.setConnection('connected');
+		expect(app.extension.toasts).toHaveLength(1);
+		expect(app.extension.toasts[0]?.message).toBe('Unrelated extension notice');
+	});
+
 	it('preserves the socket state while surfacing Pi recovery status', () => {
 		const app = new AppState();
 		app.setConnection('connected');

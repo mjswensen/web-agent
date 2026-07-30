@@ -10,6 +10,8 @@ export interface ConversationMessage {
 	thinking: string;
 	timestamp?: number;
 	isStreaming: boolean;
+	/** An empty message_start placeholder that may be replaced by Pi's stable message identity. */
+	isProvisional?: boolean;
 	error?: string;
 }
 
@@ -123,12 +125,36 @@ export function reduceMessagesSnapshot(data: JsonValue): ConversationState {
 }
 
 function withMessage(state: ConversationState, message: ConversationMessage): ConversationState {
-	const next = {
+	let messages = state.messages;
+	let tools = state.tools;
+	if (message.role === 'assistant') {
+		if (!message.isProvisional) {
+			messages = messages.map((candidate) => {
+				if (candidate.id !== message.id || !candidate.isProvisional) return candidate;
+				const durable = { ...candidate };
+				delete durable.isProvisional;
+				return durable;
+			});
+		}
+		const provisional = [...messages]
+			.reverse()
+			.find(
+				(candidate) =>
+					candidate.role === 'assistant' && candidate.isProvisional && candidate.id !== message.id
+			);
+		if (provisional) {
+			messages = messages.filter((candidate) => candidate.id !== provisional.id);
+			tools = tools.map((tool) =>
+				tool.parentMessageId === provisional.id ? { ...tool, parentMessageId: message.id } : tool
+			);
+		}
+	}
+	return {
 		...state,
-		messages: upsert(state.messages, message),
+		messages: upsert(messages, message),
+		tools,
 		...(message.role === 'assistant' ? { lastAssistantId: message.id } : {})
 	};
-	return next;
 }
 
 function toolFromStart(
@@ -156,7 +182,13 @@ export function reduceConversationEvent(
 			return { ...state, isStreaming: true };
 		case 'agent_end':
 		case 'agent_settled':
-			return { ...state, isStreaming: false };
+			return {
+				...state,
+				isStreaming: false,
+				messages: state.messages
+					.filter((message) => !(message.isProvisional && !message.text && !message.thinking))
+					.map((message) => (message.isStreaming ? { ...message, isStreaming: false } : message))
+			};
 		case 'message_start':
 		case 'message_update':
 		case 'message_end': {
@@ -164,7 +196,16 @@ export function reduceConversationEvent(
 			if (!message) return state;
 			if (message.role === 'tool') return state;
 			const isStreaming = event.type !== 'message_end' && message.role === 'assistant';
-			return withMessage(state, { ...message, isStreaming });
+			const isProvisional =
+				event.type === 'message_start' &&
+				message.role === 'assistant' &&
+				!message.text &&
+				!message.thinking;
+			return withMessage(state, {
+				...message,
+				isStreaming,
+				...(isProvisional ? { isProvisional: true } : {})
+			});
 		}
 		case 'tool_execution_start': {
 			const tool = toolFromStart(event, state.lastAssistantId);

@@ -67,6 +67,39 @@ describe('conversation event reducer', () => {
 		});
 	});
 
+	it('reconciles a provisional assistant identity and removes unmatched terminal placeholders', () => {
+		let state = reduceConversationEvent(initialConversationState(), { type: 'agent_start' });
+		state = reduceConversationEvent(state, {
+			type: 'message_start',
+			message: { role: 'assistant', timestamp: 10, content: [] }
+		});
+		state = reduceConversationEvent(state, {
+			type: 'message_update',
+			message: {
+				role: 'assistant',
+				responseId: 'stable-response',
+				content: [{ type: 'text', text: 'answer' }]
+			}
+		});
+		state = reduceConversationEvent(state, { type: 'agent_end' });
+		state = reduceConversationEvent(state, { type: 'agent_settled' });
+
+		expect(state.messages).toEqual([
+			expect.objectContaining({
+				id: 'assistant:stable-response',
+				text: 'answer',
+				isStreaming: false
+			})
+		]);
+
+		let empty = reduceConversationEvent(initialConversationState(), {
+			type: 'message_start',
+			message: { role: 'assistant', timestamp: 20, content: [] }
+		});
+		empty = reduceConversationEvent(empty, { type: 'agent_settled' });
+		expect(empty.messages).toEqual([]);
+	});
+
 	it('keeps one cumulative tool card with final output and an edit diff', () => {
 		let state = reduceConversationEvent(initialConversationState(), {
 			type: 'message_end',

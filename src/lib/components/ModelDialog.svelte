@@ -76,16 +76,16 @@
 					<div class="mt-2 grid gap-1">
 						{#each models as model (typeof model.id === 'string' ? model.id : JSON.stringify(model))}<button
 								type="button"
-								class="flex min-h-12 items-center justify-between rounded-lg px-3 text-left hover:bg-blue-50 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+								class="flex min-h-12 items-center justify-between rounded-lg px-3 text-left hover:bg-blue-50 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:hover:bg-slate-800"
 								onclick={() => void choose(model)}
 								disabled={selecting !== undefined}
-								><span class="text-sm font-medium text-slate-800"
+								><span class="text-sm font-medium text-slate-800 dark:text-slate-100"
 									>{typeof model.name === 'string'
 										? model.name
 										: typeof model.id === 'string'
 											? model.id
 											: 'Model'}</span
-								><span class="ml-4 text-xs text-slate-500"
+								><span class="ml-4 text-xs text-slate-500 dark:text-slate-400"
 									>{selecting === `${model.provider}/${model.id}` ? 'Selecting…' : model.id}</span
 								></button
 							>{/each}

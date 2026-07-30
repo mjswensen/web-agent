@@ -1,14 +1,9 @@
 <script lang="ts">
-	import type { AppState } from '$lib/state/app-state.svelte';
 	import type { ConversationMessage, ToolExecution } from '$lib/state/event-reducer';
 	import ThinkingBlock from './ThinkingBlock.svelte';
 	import ToolCard from './ToolCard.svelte';
 
-	let {
-		message,
-		tools,
-		app
-	}: { message: ConversationMessage; tools: ToolExecution[]; app: AppState } = $props();
+	let { message, tools }: { message: ConversationMessage; tools: ToolExecution[] } = $props();
 
 	const labelByRole = {
 		user: 'You',
@@ -19,12 +14,12 @@
 
 	let cardClass = $derived(
 		message.role === 'user'
-			? 'border-blue-200 bg-blue-50/70'
+			? 'border-blue-200 bg-blue-50/70 dark:border-blue-900 dark:bg-blue-950/40'
 			: message.role === 'assistant'
-				? 'border-slate-200 bg-white'
+				? 'border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900'
 				: message.role === 'tool'
-					? 'border-amber-200 bg-amber-50/70'
-					: 'border-slate-200 bg-slate-50'
+					? 'border-amber-200 bg-amber-50/70 dark:border-amber-900 dark:bg-amber-950/40'
+					: 'border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900'
 	);
 </script>
 
@@ -33,7 +28,7 @@
 	aria-label={`${labelByRole[message.role]} message`}
 >
 	<header
-		class="mb-2 flex items-center gap-2 text-[11px] font-semibold tracking-[0.14em] text-slate-500 uppercase"
+		class="mb-2 flex items-center gap-2 text-[11px] font-semibold tracking-[0.14em] text-slate-500 uppercase dark:text-slate-400"
 	>
 		<span>{labelByRole[message.role]}</span>
 		{#if message.isStreaming}
@@ -45,10 +40,10 @@
 
 	{#if message.text}
 		<pre
-			class="font-inherit m-0 text-sm leading-6 break-words whitespace-pre-wrap text-slate-800">{message.text}</pre>
+			class="font-inherit m-0 text-sm leading-6 break-words whitespace-pre-wrap text-slate-800 dark:text-slate-100">{message.text}</pre>
 	{/if}
 	{#if message.thinking}
-		<ThinkingBlock thinking={message.thinking} {app} />
+		<ThinkingBlock thinking={message.thinking} />
 	{/if}
 	{#if message.error}
 		<p class="mt-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
@@ -56,6 +51,6 @@
 		</p>
 	{/if}
 	{#each tools as tool (tool.id)}
-		<ToolCard {tool} {app} />
+		<ToolCard {tool} />
 	{/each}
 </article>

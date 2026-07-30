@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 const fakeSocket = () => {
+	let activeSessionName = 'Active session';
 	class FakeWebSocket extends EventTarget {
 		static CONNECTING = 0;
 		static OPEN = 1;
@@ -44,7 +45,7 @@ const fakeSocket = () => {
 				thinkingLevel: this.thinking,
 				isStreaming: false,
 				sessionFile: '/sessions/active.jsonl',
-				sessionName: 'Active session'
+				sessionName: activeSessionName
 			});
 			switch (frame.command) {
 				case 'get_state':
@@ -110,6 +111,10 @@ const fakeSocket = () => {
 					break;
 				case 'set_thinking_level':
 					this.thinking = frame.params.level;
+					respond();
+					break;
+				case 'set_session_name':
+					activeSessionName = frame.params.name;
 					respond();
 					break;
 				case 'get_tree':
@@ -237,9 +242,40 @@ test('streams a prompt, exposes tool output, and sends steering/follow-up comman
 	await editor.fill('Summarize afterwards');
 	await page.getByRole('button', { name: 'Follow-up' }).click();
 	await expect(page.getByText('Streaming answer complete')).toBeVisible();
-	await page.getByRole('button', { name: 'Expand tools' }).click();
 	await expect(page.getByText('Changed file')).toBeVisible();
 	await expect(page.getByText('+new')).toBeVisible();
+});
+
+test('supports Command+Enter and keeps a dismissed slash palette closed', async ({ page }) => {
+	await page.goto('/');
+	const editor = page.getByLabel('Message Pi');
+	await editor.fill('line one');
+	await editor.press('Enter');
+	await expect(editor).toHaveValue('line one\n');
+	await editor.press('Shift+Enter');
+	await expect(editor).toHaveValue('line one\n\n');
+	await editor.press('Meta+Enter');
+	await expect(editor).toHaveValue('');
+
+	await editor.fill('/review');
+	await expect(page.getByRole('dialog', { name: 'Commands' })).toBeVisible();
+	await page.getByRole('button', { name: 'Close' }).click();
+	await editor.press('Backspace');
+	await expect(editor).toHaveValue('/revie');
+	await expect(page.getByRole('dialog', { name: 'Commands' })).toBeHidden();
+	await editor.fill('review');
+	await editor.press('Home');
+	await editor.type('/');
+	await expect(page.getByRole('dialog', { name: 'Commands' })).toBeVisible();
+});
+
+test('Escape closes the topmost overlay while an input is focused', async ({ page }) => {
+	await page.goto('/');
+	await page.getByRole('button', { name: 'Sessions' }).click();
+	await page.getByRole('button', { name: 'Rename' }).click();
+	await page.getByLabel('Session name').focus();
+	await page.keyboard.press('Escape');
+	await expect(page.getByRole('dialog', { name: 'Sessions' })).toBeHidden();
 });
 
 test('opens model, thinking, session, and mobile session controls', async ({ page }) => {
@@ -253,6 +289,10 @@ test('opens model, thinking, session, and mobile session controls', async ({ pag
 	await expect(page.getByText('think high')).toBeVisible();
 	await page.getByRole('button', { name: 'Sessions' }).click();
 	await expect(page.getByRole('dialog', { name: 'Sessions' })).toBeVisible();
+	await page.getByRole('button', { name: 'Rename' }).click();
+	await page.getByLabel('Session name').fill('Renamed session');
+	await page.getByRole('button', { name: 'Save' }).click();
+	await expect(page.getByText('Renamed session').first()).toBeVisible();
 
 	await page.setViewportSize({ width: 390, height: 844 });
 	await page.getByRole('button', { name: 'Close' }).click();

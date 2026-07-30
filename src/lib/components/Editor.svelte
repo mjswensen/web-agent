@@ -10,6 +10,33 @@
 	let isConnected = $derived(app.canMutateSession);
 	let action = $derived(app.isAgentActive ? 'Steer' : 'Send');
 	let canSend = $derived(isConnected && !sending && app.editorText.trim().length > 0);
+	let wasSlashEntry = false;
+
+	function hasOverlay(): boolean {
+		return Boolean(
+			app.activeDialog ||
+			app.layout.commandPaletteOpen ||
+			app.layout.modelDialogOpen ||
+			app.layout.thinkingDialogOpen ||
+			app.layout.compactDialogOpen ||
+			app.layout.sessionDrawerOpen ||
+			app.layout.treeDrawerOpen ||
+			app.layout.mobileActionsOpen
+		);
+	}
+
+	function editorInput(value: string): void {
+		const isSlashEntry = value.startsWith('/');
+		if (isSlashEntry && !wasSlashEntry) app.layout.commandPaletteOpen = true;
+		wasSlashEntry = isSlashEntry;
+	}
+
+	function editorKeydown(event: KeyboardEvent): void {
+		if (event.key !== 'Enter' || !event.metaKey || event.shiftKey || hasOverlay()) return;
+		if (!client || !canSend) return;
+		event.preventDefault();
+		void submit();
+	}
 
 	async function submit(): Promise<void> {
 		if (!client || !canSend) return;
@@ -54,7 +81,7 @@
 </script>
 
 <section
-	class="border-t border-slate-200 bg-white px-4 py-3 shadow-[0_-8px_24px_-20px_rgb(15_23_42/0.45)] sm:px-6"
+	class="border-t border-slate-200 bg-white px-4 py-3 shadow-[0_-8px_24px_-20px_rgb(15_23_42/0.45)] sm:px-6 dark:border-slate-700 dark:bg-slate-900"
 	aria-label="Message editor"
 >
 	<div class="mx-auto flex w-full max-w-4xl flex-col gap-2">
@@ -80,9 +107,8 @@
 			<Textarea
 				id="prompt-editor"
 				bind:value={app.editorText}
-				oninput={(event) => {
-					if (event.currentTarget.value.startsWith('/')) app.layout.commandPaletteOpen = true;
-				}}
+				oninput={(event) => editorInput(event.currentTarget.value)}
+				onkeydown={editorKeydown}
 				rows={3}
 				placeholder={app.isAgentActive
 					? 'Steer the current run…'
@@ -112,8 +138,8 @@
 				{/if}
 			</div>
 		</form>
-		<p class="text-[11px] leading-4 text-slate-500">
-			Enter adds a new line. Use {action} to deliver this message.
+		<p class="text-[11px] leading-4 text-slate-500 dark:text-slate-400">
+			Enter adds a new line. Use ⌘ Enter or {action} to deliver this message.
 		</p>
 	</div>
 </section>

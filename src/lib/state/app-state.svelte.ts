@@ -24,8 +24,6 @@ export interface QueueState {
 }
 
 export interface LayoutState {
-	toolsExpanded: boolean;
-	thinkingExpanded: boolean;
 	queueOpen: boolean;
 	commandPaletteOpen: boolean;
 	modelDialogOpen: boolean;
@@ -51,6 +49,7 @@ export interface ExtensionToast {
 	id: string;
 	message: string;
 	type: ToastType;
+	category?: 'connection';
 }
 
 export interface ExtensionWidget {
@@ -132,8 +131,6 @@ export class AppState {
 	conversation: ConversationState = $state(initialConversationState());
 	queue: QueueState = $state({ steering: [], followUp: [] });
 	layout: LayoutState = $state({
-		toolsExpanded: false,
-		thinkingExpanded: false,
 		queueOpen: false,
 		commandPaletteOpen: false,
 		modelDialogOpen: false,
@@ -230,6 +227,9 @@ export class AppState {
 		if (status === 'connected') {
 			this.connection.lastError = undefined;
 			this.connection.reconnectAttempt = 0;
+			this.extension.toasts = this.extension.toasts.filter(
+				(toast) => toast.category !== 'connection'
+			);
 		}
 	}
 
@@ -240,7 +240,15 @@ export class AppState {
 	setConnectionError(error: string): void {
 		this.connection.status = 'disconnected';
 		this.connection.lastError = error;
-		this.addToast(error, 'error');
+		this.extension.toasts = [
+			...this.extension.toasts.filter((toast) => toast.category !== 'connection'),
+			{
+				id: 'websocket-connection-error',
+				message: error,
+				type: 'error',
+				category: 'connection'
+			}
+		];
 	}
 
 	addToast(message: string, type: ToastType = 'info'): void {
@@ -256,14 +264,6 @@ export class AppState {
 
 	removeDialog(id: string): void {
 		this.extension.dialogs = this.extension.dialogs.filter((dialog) => dialog.id !== id);
-	}
-
-	setToolsExpanded(expanded: boolean): void {
-		this.layout.toolsExpanded = expanded;
-	}
-
-	setThinkingExpanded(expanded: boolean): void {
-		this.layout.thinkingExpanded = expanded;
 	}
 
 	toggleQueue(): void {

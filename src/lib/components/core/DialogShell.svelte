@@ -10,7 +10,8 @@
 		kind = 'center',
 		maxWidth = 'lg',
 		layer = 'normal',
-		class: className = ''
+		class: className = '',
+		style = ''
 	}: {
 		children?: Snippet;
 		ariaLabel: string;
@@ -18,6 +19,7 @@
 		maxWidth?: MaxWidth;
 		layer?: 'normal' | 'raised';
 		class?: string;
+		style?: string;
 	} = $props();
 
 	const overlayClasses = {
@@ -36,12 +38,16 @@
 	function panelClasses(kind: DialogKind, width: MaxWidth): string {
 		const widthClass = maxWidthClasses[width];
 		return kind === 'drawer'
-			? `ml-auto flex h-full w-full ${widthClass} flex-col rounded-xl border border-slate-200 bg-white shadow-2xl`
-			: `mx-auto w-full ${widthClass} overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl`;
+			? `ml-auto flex h-full w-full ${widthClass} flex-col rounded-xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900`
+			: `mx-auto w-full ${widthClass} overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900`;
 	}
 </script>
 
-<div class={`${overlayClasses[kind]} ${layer === 'raised' ? 'z-40' : ''}`} role="presentation">
+<div
+	class={`${overlayClasses[kind]} ${layer === 'raised' ? 'z-40' : ''}`}
+	{style}
+	role="presentation"
+>
 	<div
 		class={`${panelClasses(kind, maxWidth)} ${className}`}
 		role="dialog"

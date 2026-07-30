@@ -31,11 +31,14 @@
 
 {#if dialog}
 	<DialogShell maxWidth="lg" layer="raised" ariaLabel={dialog.title} class="p-5">
-		<h2 id={`dialog-${dialog.id}`} class="text-base font-semibold text-slate-900">
+		<h2
+			id={`dialog-${dialog.id}`}
+			class="text-base font-semibold text-slate-900 dark:text-slate-100"
+		>
 			{dialog.title}
 		</h2>
 		{#if dialog.message}
-			<p class="mt-2 text-sm leading-6 text-slate-600">{dialog.message}</p>
+			<p class="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{dialog.message}</p>
 		{/if}
 
 		{#if dialog.method === 'select'}

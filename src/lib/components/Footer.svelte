@@ -4,7 +4,9 @@
 	let { app }: { app: AppState } = $props();
 </script>
 
-<footer class="border-t border-slate-200 bg-slate-50 px-4 py-2 text-[11px] text-slate-500 sm:px-6">
+<footer
+	class="border-t border-slate-200 bg-slate-50 px-4 py-2 text-[11px] text-slate-500 sm:px-6 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-400"
+>
 	<div class="mx-auto flex w-full max-w-6xl flex-wrap justify-between gap-x-4 gap-y-1">
 		<span>{app.connection.statusMessage ?? 'Local Pi RPC connection'}</span>
 		<div class="flex flex-wrap justify-end gap-x-3 gap-y-1">

@@ -41,8 +41,13 @@
 		busy = true;
 		try {
 			const response = await client.sendCommand('set_session_name', { name: name.trim() });
-			if (response.success) renaming = false;
-			else app.addToast(response.error ?? 'Unable to rename the session.', 'error');
+			if (response.success) {
+				renaming = false;
+				await Promise.all([
+					client.sendCommand('get_state'),
+					client.sendCommand('get_session_list')
+				]);
+			} else app.addToast(response.error ?? 'Unable to rename the session.', 'error');
 		} catch (error) {
 			app.setConnectionError(error instanceof Error ? error.message : String(error));
 		} finally {
@@ -60,7 +65,7 @@
 				>
 			{/snippet}
 		</DialogHeader>
-		<div class="flex flex-wrap gap-2 border-b border-slate-200 p-3">
+		<div class="flex flex-wrap gap-2 border-b border-slate-200 p-3 dark:border-slate-700">
 			<Button
 				variant="primary"
 				size="touch"
@@ -82,13 +87,14 @@
 			>
 		</div>
 		{#if renaming}<form
-				class="flex gap-2 border-b border-slate-200 p-3"
+				class="flex gap-2 border-b border-slate-200 p-3 dark:border-slate-700"
 				onsubmit={(event) => {
 					event.preventDefault();
 					void rename();
 				}}
 			>
 				<TextField class="min-w-0 flex-1" bind:value={name} aria-label="Session name" />
+				<Button variant="muted" size="touch" onclick={() => (renaming = false)}>Cancel</Button>
 				<Button
 					type="submit"
 					variant="primary"
@@ -104,16 +110,17 @@
 			{#each app.sessionList as session (typeof session.path === 'string' ? session.path : JSON.stringify(session))}
 				<button
 					type="button"
-					class={`mb-2 w-full rounded-lg border px-3 py-3 text-left focus:ring-2 focus:ring-blue-500 focus:outline-none ${session.path === app.sessionState?.sessionFile ? 'border-blue-300 bg-blue-50' : 'border-slate-200 hover:bg-slate-50'}`}
+					class={`mb-2 w-full rounded-lg border px-3 py-3 text-left focus:ring-2 focus:ring-blue-500 focus:outline-none ${session.path === app.sessionState?.sessionFile ? 'border-blue-300 bg-blue-50 dark:border-blue-700 dark:bg-blue-950' : 'border-slate-200 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800'}`}
 					onclick={() =>
 						typeof session.path === 'string' &&
 						void command('switch_session', { sessionPath: session.path })}
 					disabled={busy || app.sessionTransition}
 				>
-					<span class="block truncate text-sm font-semibold text-slate-800"
+					<span class="block truncate text-sm font-semibold text-slate-800 dark:text-slate-100"
 						>{sessionTitle(session)}</span
 					>
-					{#if typeof session.modified === 'string'}<span class="mt-1 block text-xs text-slate-500"
+					{#if typeof session.modified === 'string'}<span
+							class="mt-1 block text-xs text-slate-500 dark:text-slate-400"
 							>Updated {new Date(session.modified).toLocaleString()} · {typeof session.messageCount ===
 							'number'
 								? `${session.messageCount} messages`

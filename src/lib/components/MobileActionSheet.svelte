@@ -31,7 +31,7 @@
 		}}
 	>
 		<div
-			class="absolute right-3 bottom-3 left-3 rounded-xl border border-slate-200 bg-white p-3 shadow-2xl"
+			class="absolute right-3 bottom-3 left-3 rounded-xl border border-slate-200 bg-white p-3 shadow-2xl dark:border-slate-700 dark:bg-slate-900"
 		>
 			<div class="grid grid-cols-2 gap-2 text-sm">
 				<Button

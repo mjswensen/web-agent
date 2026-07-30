@@ -41,11 +41,51 @@
 		void client?.sendCommand('get_tree');
 	}
 
+	function closeTopOverlay(): boolean {
+		const dialog = app.activeDialog;
+		if (dialog) {
+			if (!client) return true;
+			try {
+				client.sendDialogResponse(
+					dialog.id,
+					dialog.method === 'confirm' ? { confirmed: false } : { cancelled: true }
+				);
+				app.removeDialog(dialog.id);
+			} catch (error) {
+				app.setConnectionError(error instanceof Error ? error.message : String(error));
+			}
+			return true;
+		}
+		const overlays: Array<keyof typeof app.layout> = [
+			'mobileActionsOpen',
+			'treeDrawerOpen',
+			'sessionDrawerOpen',
+			'compactDialogOpen',
+			'thinkingDialogOpen',
+			'modelDialogOpen',
+			'commandPaletteOpen'
+		];
+		const top = overlays.find((key) => app.layout[key] === true);
+		if (!top) return false;
+		app.layout[top] = false;
+		return true;
+	}
+
 	onMount(() => {
 		const socket = new WebAgentWebSocketClient({ state: app });
 		client = socket;
 		socket.connect();
-		return () => socket.disconnect();
+		const keydown = (event: KeyboardEvent) => {
+			if (event.key === 'Escape' && closeTopOverlay()) {
+				event.preventDefault();
+				event.stopImmediatePropagation();
+			}
+		};
+		window.addEventListener('keydown', keydown, true);
+		return () => {
+			window.removeEventListener('keydown', keydown, true);
+			socket.disconnect();
+		};
 	});
 
 	$effect(() => {
@@ -54,8 +94,12 @@
 	});
 </script>
 
-<div class="flex h-dvh min-h-0 flex-col bg-slate-100 font-mono text-slate-900">
-	<header class="border-b border-slate-200 bg-white px-4 py-3 sm:px-6">
+<div
+	class="flex h-dvh min-h-0 flex-col bg-slate-100 font-mono text-slate-900 dark:bg-slate-950 dark:text-slate-100"
+>
+	<header
+		class="border-b border-slate-200 bg-white px-4 py-3 sm:px-6 dark:border-slate-700 dark:bg-slate-900"
+	>
 		<div
 			class="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-x-5 gap-y-2"
 		>
@@ -103,18 +147,6 @@
 						size="toolbar"
 						variant="ghost"
 						onclick={() => (app.layout.compactDialogOpen = true)}>Compact</Button
-					>
-					<Button
-						size="toolbar"
-						variant="ghost"
-						onclick={() => app.setThinkingExpanded(!app.layout.thinkingExpanded)}
-						>{app.layout.thinkingExpanded ? 'Hide thinking' : 'Show thinking'}</Button
-					>
-					<Button
-						size="toolbar"
-						variant="ghost"
-						onclick={() => app.setToolsExpanded(!app.layout.toolsExpanded)}
-						>{app.layout.toolsExpanded ? 'Collapse tools' : 'Expand tools'}</Button
 					>
 				</div>
 				<div>

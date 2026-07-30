@@ -3,6 +3,7 @@
 @plugin '@tailwindcss/typography';
 
 :root {
+	color-scheme: light dark;
 	font-family:
 		ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
 		monospace;
@@ -18,4 +19,11 @@ body {
 
 body {
 	min-width: var(--container-xs);
+}
+
+@media (prefers-color-scheme: dark) {
+	:root {
+		color: var(--color-slate-100);
+		background: var(--color-slate-950);
+	}
 }
