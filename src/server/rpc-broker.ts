@@ -13,6 +13,7 @@ import type {
 import { projectDirectoryName } from '../lib/state/project.js';
 import { EventBatcher } from './event-batcher.js';
 import type { PiProcess } from './pi-process.js';
+import type { GitStatusProvider } from './git-status.js';
 import type { SessionListProvider } from './session-list.js';
 
 export interface BrokerClient {
@@ -23,6 +24,7 @@ export interface BrokerClient {
 export interface RpcBrokerOptions {
 	cwd?: string;
 	sessionList?: SessionListProvider;
+	gitStatus?: GitStatusProvider;
 	restartPi?: () => Promise<PiRpcTransport>;
 }
 
@@ -79,6 +81,10 @@ export function mapCommandToPi(frame: CommandFrame, id: string): JsonObject {
 	const params = asObject(frame.params);
 	const command = frame.command;
 	const base: JsonObject = { id, type: command };
+
+	if (command === 'get_git_status' || command === 'get_git_diff') {
+		throw new CommandValidationError(`${command} is handled by the Web Agent server.`);
+	}
 
 	switch (command) {
 		case 'prompt':
@@ -223,6 +229,14 @@ export class RpcBroker {
 			await this.handleSessionListRequest(clientId, frame);
 			return;
 		}
+		if (frame.command === 'get_git_status') {
+			await this.handleGitStatusRequest(clientId, frame);
+			return;
+		}
+		if (frame.command === 'get_git_diff') {
+			await this.handleGitDiffRequest(clientId, frame);
+			return;
+		}
 		if (frame.command === 'restart_pi') {
 			await this.handleRestartRequest(clientId, frame);
 			return;
@@ -285,6 +299,63 @@ export class RpcBroker {
 		const data = await this.options.sessionList.list();
 		this.storeSnapshot('session_list', data);
 		return data;
+	}
+
+	private async handleGitStatusRequest(clientId: string, frame: CommandFrame): Promise<void> {
+		if (!this.options.gitStatus) {
+			this.failure(clientId, frame.id, frame.command, new Error('Git status is not configured.'));
+			return;
+		}
+		try {
+			const data = await this.options.gitStatus.getStatus();
+			// The provider owns this fixed JSON-compatible shape; retain the protocol boundary type.
+			const jsonData = data as unknown as JsonValue;
+			this.storeSnapshot('git_status', jsonData);
+			this.send(clientId, {
+				kind: 'response',
+				id: frame.id,
+				command: frame.command,
+				success: true,
+				data: jsonData
+			});
+		} catch (error) {
+			this.failure(clientId, frame.id, frame.command, error);
+		}
+	}
+
+	private async handleGitDiffRequest(clientId: string, frame: CommandFrame): Promise<void> {
+		const token = frame.params.token;
+		if (typeof token !== 'string' || token.length === 0 || token.length > 200) {
+			this.failure(
+				clientId,
+				frame.id,
+				frame.command,
+				new CommandValidationError('token is required.')
+			);
+			return;
+		}
+		const provider = this.options.gitStatus;
+		if (!provider?.streamDiff || !provider.hasDiff?.(token)) {
+			this.failure(
+				clientId,
+				frame.id,
+				frame.command,
+				new Error('This diff preview has expired. Refresh Changes and try again.')
+			);
+			return;
+		}
+		this.send(clientId, { kind: 'response', id: frame.id, command: frame.command, success: true });
+		void provider
+			.streamDiff(token, (chunk) => this.send(clientId, { kind: 'git_diff_chunk', token, chunk }))
+			.then(() => this.send(clientId, { kind: 'git_diff_chunk', token, done: true }))
+			.catch((error: unknown) =>
+				this.send(clientId, {
+					kind: 'git_diff_chunk',
+					token,
+					done: true,
+					error: error instanceof Error ? error.message : 'Git could not load the full diff.'
+				})
+			);
 	}
 
 	private async forwardCommand(clientId: string, frame: CommandFrame): Promise<void> {

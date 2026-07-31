@@ -23,6 +23,35 @@ export interface QueueState {
 	followUp: string[];
 }
 
+export interface GitFileStatus {
+	path: string;
+	originalPath?: string;
+	indexStatus?: string;
+	worktreeStatus?: string;
+	stagedDiff?: string;
+	unstagedDiff?: string;
+	stagedDiffError?: string;
+	unstagedDiffError?: string;
+	stagedDiffToken?: string;
+	unstagedDiffToken?: string;
+	stagedDiffTruncated?: boolean;
+	unstagedDiffTruncated?: boolean;
+	untracked?: boolean;
+	conflicted?: boolean;
+	binary?: boolean;
+}
+
+export type GitStatusSnapshot =
+	| {
+			state: 'ready';
+			repositoryRoot: string;
+			branch: { name: string; detached: boolean; oid?: string };
+			refreshedAt: string;
+			files: GitFileStatus[];
+	  }
+	| { state: 'not_repository'; refreshedAt: string }
+	| { state: 'error'; refreshedAt: string; message: string };
+
 export interface LayoutState {
 	queueOpen: boolean;
 	commandPaletteOpen: boolean;
@@ -31,6 +60,7 @@ export interface LayoutState {
 	compactDialogOpen: boolean;
 	sessionDrawerOpen: boolean;
 	treeDrawerOpen: boolean;
+	gitStatusDrawerOpen: boolean;
 	mobileActionsOpen: boolean;
 }
 
@@ -64,6 +94,13 @@ export interface ExtensionState {
 	statuses: Record<string, string>;
 	widgets: Record<string, ExtensionWidget>;
 	title?: string;
+}
+
+export interface GitDiffStream {
+	content: string;
+	loading: boolean;
+	complete: boolean;
+	error?: string;
 }
 
 export interface CompactionState {
@@ -138,6 +175,7 @@ export class AppState {
 		compactDialogOpen: false,
 		sessionDrawerOpen: false,
 		treeDrawerOpen: false,
+		gitStatusDrawerOpen: false,
 		mobileActionsOpen: false
 	});
 	extension: ExtensionState = $state({ dialogs: [], toasts: [], statuses: {}, widgets: {} });
@@ -146,6 +184,7 @@ export class AppState {
 	sessionTransition = $state(false);
 	editorText = $state('');
 	lastEvent = $state<JsonValue | undefined>(undefined);
+	gitDiffStreams = $state<Record<string, GitDiffStream>>({});
 
 	get sessionState(): JsonObject | undefined {
 		return asObject(this.snapshots.state);
@@ -186,6 +225,86 @@ export class AppState {
 	get activeTreeLeafId(): string | undefined {
 		const data = asObject(this.snapshots.tree);
 		return typeof data?.leafId === 'string' ? data.leafId : undefined;
+	}
+
+	get gitStatus(): GitStatusSnapshot | undefined {
+		const data = asObject(this.snapshots.git_status);
+		if (!data || typeof data.state !== 'string' || typeof data.refreshedAt !== 'string')
+			return undefined;
+		if (data.state === 'not_repository')
+			return { state: 'not_repository', refreshedAt: data.refreshedAt };
+		if (data.state === 'error' && typeof data.message === 'string') {
+			return { state: 'error', refreshedAt: data.refreshedAt, message: data.message };
+		}
+		if (
+			data.state !== 'ready' ||
+			typeof data.repositoryRoot !== 'string' ||
+			!asObject(data.branch) ||
+			typeof asObject(data.branch)?.name !== 'string' ||
+			typeof asObject(data.branch)?.detached !== 'boolean' ||
+			!Array.isArray(data.files)
+		)
+			return undefined;
+		const branch = asObject(data.branch)!;
+		return {
+			state: 'ready',
+			repositoryRoot: data.repositoryRoot,
+			branch: {
+				name: branch.name as string,
+				detached: branch.detached as boolean,
+				...(typeof branch.oid === 'string' ? { oid: branch.oid } : {})
+			},
+			refreshedAt: data.refreshedAt,
+			files: data.files
+				.filter((file): file is JsonObject => asObject(file) !== undefined)
+				.filter((file) => typeof file.path === 'string')
+				.map((file) => ({
+					path: file.path as string,
+					...(typeof file.originalPath === 'string' ? { originalPath: file.originalPath } : {}),
+					...(typeof file.indexStatus === 'string' ? { indexStatus: file.indexStatus } : {}),
+					...(typeof file.worktreeStatus === 'string'
+						? { worktreeStatus: file.worktreeStatus }
+						: {}),
+					...(typeof file.stagedDiff === 'string' ? { stagedDiff: file.stagedDiff } : {}),
+					...(typeof file.unstagedDiff === 'string' ? { unstagedDiff: file.unstagedDiff } : {}),
+					...(typeof file.stagedDiffError === 'string'
+						? { stagedDiffError: file.stagedDiffError }
+						: {}),
+					...(typeof file.unstagedDiffError === 'string'
+						? { unstagedDiffError: file.unstagedDiffError }
+						: {}),
+					...(typeof file.stagedDiffToken === 'string'
+						? { stagedDiffToken: file.stagedDiffToken }
+						: {}),
+					...(typeof file.unstagedDiffToken === 'string'
+						? { unstagedDiffToken: file.unstagedDiffToken }
+						: {}),
+					...(file.stagedDiffTruncated === true ? { stagedDiffTruncated: true } : {}),
+					...(file.unstagedDiffTruncated === true ? { unstagedDiffTruncated: true } : {}),
+					...(file.untracked === true ? { untracked: true } : {}),
+					...(file.conflicted === true ? { conflicted: true } : {}),
+					...(file.binary === true ? { binary: true } : {})
+				}))
+				.sort((first, second) => first.path.localeCompare(second.path))
+		};
+	}
+
+	gitDiff(token: string | undefined): GitDiffStream | undefined {
+		return token ? this.gitDiffStreams[token] : undefined;
+	}
+
+	startGitDiff(token: string): void {
+		this.gitDiffStreams[token] = { content: '', loading: true, complete: false };
+	}
+
+	failGitDiff(token: string, message: string): void {
+		const stream = this.gitDiffStreams[token];
+		this.gitDiffStreams[token] = {
+			content: stream?.content ?? '',
+			loading: false,
+			complete: true,
+			error: message
+		};
 	}
 
 	get widgetsAboveEditor(): ExtensionWidget[] {
@@ -346,6 +465,17 @@ export class AppState {
 				this.sessionTransition = false;
 			}
 			if (frame.snapshotType === 'queue') this.queue = queueFrom(frame.data);
+			return;
+		}
+		if (frame.kind === 'git_diff_chunk') {
+			const stream = this.gitDiffStreams[frame.token];
+			if (!stream) return;
+			this.gitDiffStreams[frame.token] = {
+				content: stream.content + (frame.chunk ?? ''),
+				loading: frame.done ? false : stream.loading,
+				complete: frame.done === true || stream.complete,
+				...(frame.error ? { error: frame.error } : stream.error ? { error: stream.error } : {})
+			};
 			return;
 		}
 		if (frame.kind === 'event') {

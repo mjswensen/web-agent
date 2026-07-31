@@ -9,6 +9,7 @@
 		target:
 			| 'sessionDrawerOpen'
 			| 'treeDrawerOpen'
+			| 'gitStatusDrawerOpen'
 			| 'modelDialogOpen'
 			| 'thinkingDialogOpen'
 			| 'compactDialogOpen'
@@ -18,6 +19,7 @@
 		app.layout[target] = true;
 		if (target === 'sessionDrawerOpen') void client?.sendCommand('get_session_list');
 		if (target === 'treeDrawerOpen') void client?.sendCommand('get_tree');
+		if (target === 'gitStatusDrawerOpen') void client?.sendCommand('get_git_status');
 		if (target === 'modelDialogOpen') void client?.sendCommand('get_available_models');
 	}
 </script>
@@ -44,6 +46,11 @@
 					size="touch"
 					class="text-slate-800"
 					onclick={() => open('treeDrawerOpen')}>Tree</Button
+				><Button
+					variant="secondary"
+					size="touch"
+					class="text-slate-800"
+					onclick={() => open('gitStatusDrawerOpen')}>Changes</Button
 				><Button
 					variant="secondary"
 					size="touch"

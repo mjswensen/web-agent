@@ -30,6 +30,8 @@ export const browserCommands = [
 	'set_session_name',
 	'get_session_stats',
 	'get_session_list',
+	'get_git_status',
+	'get_git_diff',
 	'restart_pi'
 ] as const;
 
@@ -82,6 +84,14 @@ export interface SnapshotFrame {
 	data: JsonValue;
 }
 
+export interface GitDiffChunkFrame {
+	kind: 'git_diff_chunk';
+	token: string;
+	chunk?: string;
+	done?: true;
+	error?: string;
+}
+
 export interface ExtensionUiRequestFrame extends JsonObject {
 	kind: 'extension_ui_request';
 	id: string;
@@ -104,6 +114,7 @@ export type ServerFrame =
 	| EventFrame
 	| EventsFrame
 	| SnapshotFrame
+	| GitDiffChunkFrame
 	| ExtensionUiRequestFrame
 	| ServerStatusFrame
 	| PongFrame;

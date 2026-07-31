@@ -93,6 +93,50 @@ const fakeSocket = () => {
 					});
 					respond({});
 					break;
+				case 'get_git_diff':
+					this.emit({
+						kind: 'git_diff_chunk',
+						token: frame.params.token,
+						chunk: '--- /dev/null\n+++ b/alpha.txt\n+untracked preview\n+full content'
+					});
+					this.emit({ kind: 'git_diff_chunk', token: frame.params.token, done: true });
+					respond({});
+					break;
+				case 'get_git_status':
+					this.emit({
+						kind: 'snapshot',
+						snapshotType: 'git_status',
+						data: {
+							state: 'ready',
+							repositoryRoot: '/workspaces/demo-project',
+							branch: { name: 'main', detached: false },
+							refreshedAt: '2026-01-01T00:00:00.000Z',
+							files: [
+								{
+									path: 'zeta.ts',
+									indexStatus: 'M',
+									stagedDiff: '--- a/zeta.ts\n+++ b/zeta.ts\n+staged'
+								},
+								{
+									path: 'alpha.txt',
+									untracked: true,
+									worktreeStatus: '?',
+									unstagedDiff: '--- /dev/null\n+++ b/alpha.txt\n+untracked preview',
+									unstagedDiffTruncated: true,
+									unstagedDiffToken: 'alpha-full-diff'
+								},
+								{
+									path: 'mixed.ts',
+									indexStatus: 'M',
+									worktreeStatus: 'M',
+									stagedDiff: '+staged mixed',
+									unstagedDiff: '+unstaged mixed'
+								}
+							]
+						}
+					});
+					respond({});
+					break;
 				case 'get_available_models':
 					this.emit({
 						kind: 'snapshot',
@@ -299,6 +343,33 @@ test('Escape closes the topmost overlay while an input is focused', async ({ pag
 	await page.getByLabel('Session name').focus();
 	await page.keyboard.press('Escape');
 	await expect(page.getByRole('dialog', { name: 'Sessions' })).toBeHidden();
+});
+
+test('opens Changes with staged, unstaged, and untracked Git previews', async ({ page }) => {
+	await page.goto('/');
+	await page.getByRole('button', { name: 'Changes' }).click();
+	const changes = page.getByRole('dialog', { name: 'Changes' });
+	await expect(changes).toContainText('Branch: main');
+	await expect(changes).toContainText('/workspaces/demo-project');
+	await expect(changes.getByRole('heading', { name: 'alpha.txt' })).toBeVisible();
+	await expect(changes.getByText('+untracked preview')).toBeVisible();
+	await expect(changes.getByRole('button', { name: 'Load full diff' })).toHaveCount(1);
+	await changes.getByRole('button', { name: 'Load full diff' }).click();
+	await expect(changes.getByText('+full content')).toBeVisible();
+	await expect(changes.getByRole('button', { name: 'Load full diff' })).toHaveCount(0);
+	await expect(changes.getByText('+staged mixed')).toBeVisible();
+	await expect(changes.getByText('+unstaged mixed')).toBeVisible();
+	await expect(changes.getByText('Untracked', { exact: true })).toHaveClass(/emerald/);
+	await expect(changes.getByText('Staged M').first()).toHaveClass(/amber/);
+	const paths = await changes.locator('article h3').allTextContents();
+	expect(paths).toEqual(['alpha.txt', 'mixed.ts', 'zeta.ts']);
+	await changes.getByRole('button', { name: 'Refresh' }).click();
+
+	await page.setViewportSize({ width: 390, height: 844 });
+	await changes.getByRole('button', { name: 'Close' }).click();
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await page.getByRole('button', { name: 'Changes' }).last().click();
+	await expect(page.getByRole('dialog', { name: 'Changes' })).toBeVisible();
 });
 
 test('opens model, thinking, session, and mobile session controls', async ({ page }) => {

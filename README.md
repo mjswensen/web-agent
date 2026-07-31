@@ -2,7 +2,7 @@
 
 Web Agent is a local, mobile-responsive browser interface for [Pi](https://pi.dev). It is a standalone Node.js package, not a Pi extension. One Web Agent server owns one long-lived `pi --mode rpc` child process and shares its active session with every connected browser tab.
 
-> **Security:** Web Agent controls an agent with local filesystem and shell access. It defaults to loopback, but `--host`/`--bind` can expose it on any listen address. Only bind to a reachable interface when that exposure is intended.
+> **Security:** Web Agent controls an agent with local filesystem and shell access. It defaults to loopback, but `--host`/`--bind` can expose it on any listen address. Only bind to a reachable interface when that exposure is intended. The read-only Changes view displays tracked and untracked file contents, which can include newly created credentials.
 
 ## Requirements
 
@@ -78,7 +78,8 @@ Run `web-agent --help` for the concise command-line summary.
 - **Send** submits a prompt while Pi is idle. During an active run it becomes **Steer**. On macOS, Command+Enter invokes the same action.
 - **Follow-up** queues a message for after Pi fully settles.
 - **Abort** stops active work.
-- Use the header controls (or the mobile **Menu**) for commands, models, thinking level, compaction, sessions, and the session tree.
+- Use the header controls (or the mobile **Menu**) for commands, models, thinking level, compaction, sessions, the session tree, and **Changes**.
+- **Changes** is a shared, read-only Git worktree snapshot for the launch directory. It shows branch, staged/unstaged patches, and required untracked-file previews; open it or press Refresh to collect a new snapshot. Truncated previews offer **Load full diff**, which streams that status-derived diff over the existing connection.
 - Tool calls stream output live with arguments, output, and edit diffs shown in full.
 - Thinking is kept separate from assistant text and shown in full.
 - All tabs see the same active session, conversation, queue, and session transitions.

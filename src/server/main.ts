@@ -2,6 +2,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import type { Duplex } from 'node:stream';
 import type { Buffer } from 'node:buffer';
 import type { AddressInfo } from 'node:net';
+import { DefaultGitStatusProvider } from './git-status.js';
 import { RpcBroker } from './rpc-broker.js';
 import { type PiLifecycleOptions } from './pi-lifecycle.js';
 import { PiSupervisor } from './pi-supervisor.js';
@@ -104,6 +105,7 @@ export async function attachWebAgentRuntime(
 	const broker = new RpcBroker(piProcess, {
 		cwd: piOptions.cwd,
 		sessionList: supervisor.sessionList,
+		gitStatus: new DefaultGitStatusProvider({ cwd: piOptions.cwd ?? process.cwd() }),
 		restartPi: () => supervisor.restart()
 	});
 	const webSockets = installWebSocketServer(server, broker);
@@ -135,6 +137,7 @@ export async function createWebAgentRuntime(
 	const broker = new RpcBroker(piProcess, {
 		cwd: piOptions.cwd,
 		sessionList: supervisor.sessionList,
+		gitStatus: new DefaultGitStatusProvider({ cwd: piOptions.cwd ?? process.cwd() }),
 		restartPi: () => supervisor.restart()
 	});
 	const http = createWebAgentHttpServer(handler, broker);

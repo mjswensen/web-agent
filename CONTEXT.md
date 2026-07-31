@@ -61,7 +61,7 @@ The intended CLI defaults and forwarding are:
 - response correlation back to the requesting tab;
 - broadcast of Pi events, extension UI requests, and server statuses;
 - cached snapshots for reconnecting tabs;
-- internal SDK-backed `get_session_list` handling;
+- internal SDK-backed `get_session_list` handling and lazy, read-only `get_git_status` handling;
 - session-list refresh after session mutations and explicit Pi restart.
 
 Browser frames use `kind` values including `command`, `dialog_response`, and `ping`. Server frames include `response`, `event`, `events` (coalesced events), `snapshot`, `extension_ui_request`, `server_status`, and `pong`. Session-list enumeration is internal and is never forwarded to Pi.
@@ -81,7 +81,7 @@ The main composition is `src/lib/components/AppShell.svelte`:
 - header/project/session/actions;
 - `Conversation` with structured message cards and tool cards;
 - extension widgets above/below the editor;
-- queue panel;
+- queue panel and shared read-only Git Changes drawer;
 - multiline editor with Send/Steer, Follow-up, and Abort;
 - footer metrics/statuses;
 - command, model, thinking, compaction, extension, recovery, session, tree, mobile, and toast overlays.
@@ -111,6 +111,7 @@ src/
   server/rpc-broker.ts            RPC correlation, broadcast, snapshots, session adapter
   server/websocket.ts             /ws upgrade and connection handling
   server/session-list.ts          SDK SessionManager list adapter
+  server/git-status.ts            Read-only Git porcelain/diff snapshot provider
   server/event-batcher.ts         Stream event coalescing
   server/main.ts                  Shared HTTP/runtime factories
   server/entry.ts                 Production CLI executable
@@ -140,6 +141,8 @@ The deterministic E2E suite uses a fake in-browser WebSocket/Pi transport and do
 Do not accidentally expand v1 into any of the following: Pi theme loading, terminal emulation, file `@` completion, image attachments, user bash mode, Pi export/share/login UI, multiple active Pi subprocesses, multiple OS-user configurations, or in-place session-tree navigation. Pi RPC supports tree inspection and fork/clone actions, but not `AgentSession.navigateTree()`.
 
 Queue state comes from Pi `queue_update`. There is no precise queue-item removal RPC; the UI must retain the documented conservative copy-back/abort behavior and must not claim arbitrary per-item cancellation.
+
+`get_git_status` is a lazy browser command handled by the broker, never forwarded to Pi. Its provider runs fixed noninteractive Git argument arrays against the launch worktree and broadcasts snapshots to tabs; opening Changes and Refresh always request a new snapshot. Truncated previews carry short-lived opaque tokens; `get_git_diff` streams only the matching fixed, server-derived full diff to the requesting tab in WebSocket chunks. The read-only view displays staged, unstaged, and untracked content, including potentially sensitive untracked files.
 
 The detailed specification requires extension-dialog ownership in a shared-tab setup. The current broker forwards extension requests to connected tabs, while the client dialog state is a simple queue; treat ownership/promotion as an area to preserve or complete deliberately rather than assuming it is already solved.
 

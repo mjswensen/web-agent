@@ -8,6 +8,7 @@
 	import Editor from './Editor.svelte';
 	import ExtensionDialogHost from './ExtensionDialogHost.svelte';
 	import Footer from './Footer.svelte';
+	import GitStatusDrawer from './GitStatusDrawer.svelte';
 	import MobileActionSheet from './MobileActionSheet.svelte';
 	import ModelDialog from './ModelDialog.svelte';
 	import QueuePanel from './QueuePanel.svelte';
@@ -59,6 +60,11 @@
 		void client?.sendCommand('get_tree');
 	}
 
+	function openChanges(): void {
+		app.layout.gitStatusDrawerOpen = true;
+		void client?.sendCommand('get_git_status');
+	}
+
 	function closeTopOverlay(): boolean {
 		const dialog = app.activeDialog;
 		if (dialog) {
@@ -77,6 +83,7 @@
 		const overlays: Array<keyof typeof app.layout> = [
 			'mobileActionsOpen',
 			'treeDrawerOpen',
+			'gitStatusDrawerOpen',
 			'sessionDrawerOpen',
 			'compactDialogOpen',
 			'thinkingDialogOpen',
@@ -149,6 +156,7 @@
 				<div class="hidden gap-1 sm:flex">
 					<Button size="toolbar" variant="ghost" onclick={openSessions}>Sessions</Button>
 					<Button size="toolbar" variant="ghost" onclick={openTree}>Tree</Button>
+					<Button size="toolbar" variant="ghost" onclick={openChanges}>Changes</Button>
 					<Button
 						size="toolbar"
 						variant="ghost"
@@ -186,5 +194,6 @@
 	<ToastHost {app} />
 	<SessionDrawer {app} {client} />
 	<SessionTreeDrawer {app} {client} />
+	<GitStatusDrawer {app} {client} />
 	<MobileActionSheet {app} {client} />
 </div>

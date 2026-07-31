@@ -37,7 +37,14 @@ class FakePi implements PiRpcTransport {
 
 function command(
 	id: string,
-	name: 'prompt' | 'get_state' | 'get_session_list' | 'restart_pi' | 'set_session_name'
+	name:
+		| 'prompt'
+		| 'get_state'
+		| 'get_session_list'
+		| 'get_git_status'
+		| 'get_git_diff'
+		| 'restart_pi'
+		| 'set_session_name'
 ) {
 	const frame = parseClientFrame({
 		kind: 'command',
@@ -48,7 +55,9 @@ function command(
 				? { message: 'Hello' }
 				: name === 'set_session_name'
 					? { name: 'Renamed session' }
-					: {}
+					: name === 'get_git_diff'
+						? { token: 'opaque-token' }
+						: {}
 	});
 	if (!frame.ok || frame.frame.kind !== 'command') throw new Error('Invalid test frame.');
 	return frame.frame;
@@ -165,6 +174,72 @@ describe('browser protocol validation and Pi RPC broker', () => {
 			success: true,
 			data: { sessions: [{ id: 'one', path: '/sessions/one.jsonl' }] }
 		});
+	});
+
+	it('serves Git status internally, broadcasts its snapshot, and responds only to the requester', async () => {
+		const pi = new FakePi();
+		const snapshot = {
+			state: 'ready' as const,
+			repositoryRoot: '/workspaces/demo-project',
+			branch: { name: 'main', detached: false },
+			refreshedAt: '2026-01-01T00:00:00.000Z',
+			files: []
+		};
+		const broker = new RpcBroker(pi, { gitStatus: { getStatus: async () => snapshot } });
+		const first: unknown[] = [];
+		const second: unknown[] = [];
+		broker.addClient({ id: 'first', send: (frame) => first.push(frame) });
+		broker.addClient({ id: 'second', send: (frame) => second.push(frame) });
+
+		await broker.handleClientFrame('first', command('changes', 'get_git_status'));
+
+		expect(pi.writes).toEqual([]);
+		expect(first).toContainEqual({ kind: 'snapshot', snapshotType: 'git_status', data: snapshot });
+		expect(second).toContainEqual({ kind: 'snapshot', snapshotType: 'git_status', data: snapshot });
+		expect(first).toContainEqual({
+			kind: 'response',
+			id: 'changes',
+			command: 'get_git_status',
+			success: true,
+			data: snapshot
+		});
+		expect(second).not.toContainEqual(expect.objectContaining({ kind: 'response' }));
+	});
+
+	it('streams a full Git diff only to the requesting client using an opaque token', async () => {
+		const pi = new FakePi();
+		const broker = new RpcBroker(pi, {
+			gitStatus: {
+				getStatus: async () => ({ state: 'not_repository' as const, refreshedAt: 'now' }),
+				hasDiff: (token) => token === 'opaque-token',
+				streamDiff: async (_token, onChunk) => {
+					onChunk('first chunk\\n');
+					onChunk('second chunk\\n');
+				}
+			}
+		});
+		const first: unknown[] = [];
+		const second: unknown[] = [];
+		broker.addClient({ id: 'first', send: (frame) => first.push(frame) });
+		broker.addClient({ id: 'second', send: (frame) => second.push(frame) });
+
+		await broker.handleClientFrame('first', command('full-diff', 'get_git_diff'));
+		await new Promise((resolve) => setTimeout(resolve, 0));
+
+		expect(pi.writes).toEqual([]);
+		expect(first).toContainEqual({
+			kind: 'response',
+			id: 'full-diff',
+			command: 'get_git_diff',
+			success: true
+		});
+		expect(first).toContainEqual({
+			kind: 'git_diff_chunk',
+			token: 'opaque-token',
+			chunk: 'first chunk\\n'
+		});
+		expect(first).toContainEqual({ kind: 'git_diff_chunk', token: 'opaque-token', done: true });
+		expect(second).toEqual([]);
 	});
 
 	it('includes the launch directory in state snapshots', async () => {

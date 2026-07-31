@@ -60,6 +60,38 @@ describe('extension UI state', () => {
 		expect(app.extension.toasts).toHaveLength(1);
 	});
 
+	it('exposes a validated Git status snapshot', () => {
+		const app = new AppState();
+		app.receive({
+			kind: 'snapshot',
+			snapshotType: 'git_status',
+			data: {
+				state: 'ready',
+				repositoryRoot: '/repo',
+				branch: { name: 'main', detached: false },
+				refreshedAt: '2026-01-01T00:00:00.000Z',
+				files: [{ path: 'new file.txt', untracked: true, unstagedDiff: '+content' }]
+			}
+		});
+		expect(app.gitStatus).toMatchObject({
+			state: 'ready',
+			branch: { name: 'main' },
+			files: [{ path: 'new file.txt', untracked: true, unstagedDiff: '+content' }]
+		});
+	});
+
+	it('appends full Git diff chunks to the requesting diff stream', () => {
+		const app = new AppState();
+		app.startGitDiff('opaque-token');
+		app.receive({ kind: 'git_diff_chunk', token: 'opaque-token', chunk: 'first\n' });
+		app.receive({ kind: 'git_diff_chunk', token: 'opaque-token', chunk: 'second\n', done: true });
+		expect(app.gitDiff('opaque-token')).toEqual({
+			content: 'first\nsecond\n',
+			loading: false,
+			complete: true
+		});
+	});
+
 	it('deduplicates connection failures and removes only those toasts on recovery', () => {
 		const app = new AppState();
 		app.addToast('Unrelated extension notice');
