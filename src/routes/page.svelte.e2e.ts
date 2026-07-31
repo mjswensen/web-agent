@@ -197,7 +197,12 @@ const fakeSocket = () => {
 								message: {
 									role: 'assistant',
 									timestamp: 2,
-									content: [{ type: 'text', text: 'Streaming answer complete' }]
+									content: [
+										{
+											type: 'text',
+											text: 'Streaming **answer complete** [guide](https://example.com/guide)\n\n<script>window.markdownXss = true</script>'
+										}
+									]
 								}
 							}
 						});
@@ -244,6 +249,24 @@ test('streams a prompt, exposes tool output, and sends steering/follow-up comman
 	await expect(page.getByText('Streaming answer complete')).toBeVisible();
 	await expect(page.getByText('Changed file')).toBeVisible();
 	await expect(page.getByText('+new')).toBeVisible();
+});
+
+test('renders assistant Markdown without executing injected markup', async ({ page }) => {
+	await page.goto('/');
+	const editor = page.getByLabel('Message Pi');
+	await editor.fill('Show Markdown');
+	await page.getByRole('button', { name: 'Send' }).click();
+
+	const assistant = page.getByLabel('Pi message');
+	await expect(assistant.locator('.markdown strong')).toHaveText('answer complete');
+	await expect(assistant.getByRole('link', { name: 'guide' })).toHaveAttribute(
+		'href',
+		'https://example.com/guide'
+	);
+	await expect(assistant.locator('script')).toHaveCount(0);
+	expect(
+		await page.evaluate(() => (window as typeof window & { markdownXss?: boolean }).markdownXss)
+	).toBeUndefined();
 });
 
 test('supports Command+Enter and keeps a dismissed slash palette closed', async ({ page }) => {

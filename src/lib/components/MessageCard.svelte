@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { ConversationMessage, ToolExecution } from '$lib/state/event-reducer';
+	import Markdown from './Markdown.svelte';
 	import ThinkingBlock from './ThinkingBlock.svelte';
 	import ToolCard from './ToolCard.svelte';
 
@@ -39,8 +40,12 @@
 	</header>
 
 	{#if message.text}
-		<pre
-			class="font-inherit m-0 text-sm leading-6 break-words whitespace-pre-wrap text-slate-800 dark:text-slate-100">{message.text}</pre>
+		{#if message.role === 'user' || message.role === 'assistant'}
+			<Markdown source={message.text} />
+		{:else}
+			<pre
+				class="font-inherit m-0 text-sm leading-6 wrap-break-word whitespace-pre-wrap text-slate-800 dark:text-slate-100">{message.text}</pre>
+		{/if}
 	{/if}
 	{#if message.thinking}
 		<ThinkingBlock thinking={message.thinking} />
