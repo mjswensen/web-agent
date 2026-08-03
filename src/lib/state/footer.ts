@@ -1,11 +1,17 @@
 import type { JsonObject, JsonValue } from '../client/protocol.js';
 
+export interface FooterContext {
+	percent: number | undefined;
+	percentage: string;
+	details: string;
+}
+
 export interface FooterValues {
 	model: string;
 	thinking: string;
 	tokens: string;
 	cost: string;
-	context: string;
+	context: FooterContext;
 }
 
 function object(value: JsonValue | undefined): JsonObject | undefined {
@@ -53,7 +59,14 @@ export function deriveFooterValues(
 		cost: cost === undefined ? '—' : `$${cost.toFixed(4)}`,
 		context:
 			contextPercent === undefined
-				? '—'
-				: `${contextPercent.toFixed(1)}%${contextTokens === undefined || contextWindow === undefined ? '' : ` (${displayNumber(contextTokens)} / ${displayNumber(contextWindow)})`}`
+				? { percent: undefined, percentage: '—', details: '' }
+				: {
+						percent: contextPercent,
+						percentage: `${contextPercent.toFixed(1)}%`,
+						details:
+							contextTokens === undefined || contextWindow === undefined
+								? ''
+								: ` (${displayNumber(contextTokens)} / ${displayNumber(contextWindow)})`
+					}
 	};
 }

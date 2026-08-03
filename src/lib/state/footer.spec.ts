@@ -8,7 +8,7 @@ describe('footer display values', () => {
 			thinking: '—',
 			tokens: '—',
 			cost: '—',
-			context: '—'
+			context: { percent: undefined, percentage: '—', details: '' }
 		});
 	});
 
@@ -27,7 +27,7 @@ describe('footer display values', () => {
 			thinking: 'high',
 			tokens: '1,200 in / 300 out · 50 cache read / 25 cache write',
 			cost: '$0.0123',
-			context: '12.5% (2,500 / 20,000)'
+			context: { percent: 12.5, percentage: '12.5%', details: ' (2,500 / 20,000)' }
 		});
 	});
 });
