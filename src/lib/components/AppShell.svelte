@@ -120,40 +120,64 @@
 </script>
 
 <div
-	class="flex h-dvh min-h-0 flex-col bg-slate-100 font-mono text-slate-900 dark:bg-slate-950 dark:text-slate-100"
+	class="flex h-dvh min-h-0 flex-col bg-slate-100/75 font-mono text-slate-900 dark:bg-slate-950/85 dark:text-slate-100"
 >
 	<header
-		class="border-b border-slate-200 bg-white px-4 py-3 sm:px-6 dark:border-slate-700 dark:bg-slate-900"
+		class="border-b border-slate-300 bg-white/95 px-4 py-2.5 shadow-[0_1px_0_rgb(255_255_255/0.8)] backdrop-blur-md sm:px-6 dark:border-slate-700 dark:bg-slate-900/95 dark:shadow-none"
 	>
-		<div
-			class="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-x-5 gap-y-2"
-		>
-			<div class="flex min-w-0 items-center gap-3">
+		<div class="mx-auto flex w-full max-w-7xl items-center justify-between gap-4">
+			<div class="flex min-w-0 items-center gap-3 sm:gap-4">
+				<div
+					class="grid size-10 shrink-0 place-items-center border border-slate-900 bg-slate-950 text-xs font-bold tracking-tighter text-white shadow-[3px_3px_0_var(--color-blue-500)] dark:border-slate-500"
+					aria-hidden="true"
+				>
+					&gt;_
+				</div>
 				<div class="min-w-0">
-					<div class="mb-1.5 flex items-center gap-2">
-						<p class="text-sm font-bold tracking-tight">Web Agent</p>
-						<span
-							class={`h-2 w-2 rounded-full ${app.connection.status === 'connected' ? 'bg-emerald-500' : app.connection.status === 'connecting' ? 'animate-pulse bg-amber-400' : 'bg-slate-400'}`}
-							aria-hidden="true"
-						></span>
-						<span class={`text-[11px] font-semibold ${agentStatusClass}`}>{agentStatus}</span>
+					<div class="flex min-w-0 items-center gap-2">
+						<p class="shrink-0 text-sm font-bold tracking-[-0.04em]">WEB AGENT</p>
+						<span class="hidden text-slate-300 sm:inline dark:text-slate-700">/</span>
+						<p
+							class="hidden max-w-56 truncate text-xs font-semibold text-slate-700 sm:block dark:text-slate-200"
+							title={app.sessionName}
+						>
+							{app.sessionName ?? 'New session'}
+						</p>
 					</div>
-					<p class="max-w-58 truncate text-[11px] text-slate-500" title={cwd || undefined}>
-						{cwd || '—'}
-					</p>
-					<p class="max-w-58 truncate text-[11px] text-slate-500" title={app.sessionName}>
-						{app.sessionName ?? 'New session'}
+					<p
+						class="mt-0.5 max-w-56 truncate text-[10px] text-slate-500 sm:max-w-sm"
+						title={cwd || undefined}
+					>
+						{cwd || 'Waiting for workspace'}
 					</p>
 				</div>
 			</div>
-			<div class="flex items-center gap-3 text-right text-[11px] leading-5 text-slate-500">
+
+			<div class="flex shrink-0 items-center gap-2">
+				<div
+					class="flex items-center gap-2 lg:border-r lg:border-slate-200 lg:pr-3 dark:lg:border-slate-700"
+				>
+					<span
+						class={`size-2 ${app.connection.status === 'connected' ? 'bg-emerald-500' : app.connection.status === 'connecting' ? 'animate-pulse bg-amber-400' : 'bg-slate-400'}`}
+						aria-hidden="true"
+					></span>
+					<span
+						class={`sr-only text-[10px] font-bold tracking-wide uppercase lg:not-sr-only ${agentStatusClass}`}
+						aria-live="polite"
+					>
+						{agentStatus}
+					</span>
+				</div>
 				<Button
-					variant="ghost"
+					variant="secondary"
 					size="touch"
-					class="px-2 font-semibold text-slate-700 sm:hidden"
+					class="px-3 font-semibold sm:hidden"
 					onclick={() => (app.layout.mobileActionsOpen = true)}>Menu</Button
 				>
-				<div class="hidden gap-1 sm:flex">
+				<nav
+					class="hidden items-center border border-slate-300 bg-slate-50 p-0.5 sm:flex dark:border-slate-700 dark:bg-slate-950"
+					aria-label="Agent tools"
+				>
 					<Button size="toolbar" variant="ghost" onclick={openSessions}>Sessions</Button>
 					<Button size="toolbar" variant="ghost" onclick={openTree}>Tree</Button>
 					<Button size="toolbar" variant="ghost" onclick={openChanges}>Changes</Button>
@@ -173,7 +197,7 @@
 						variant="ghost"
 						onclick={() => (app.layout.compactDialogOpen = true)}>Compact</Button
 					>
-				</div>
+				</nav>
 			</div>
 		</div>
 	</header>

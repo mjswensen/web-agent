@@ -7,8 +7,9 @@
 	font-family:
 		ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
 		monospace;
+	font-synthesis: none;
 	color: var(--color-slate-900);
-	background: var(--color-slate-50);
+	background: var(--color-slate-100);
 }
 
 html,
@@ -19,11 +20,25 @@ body {
 
 body {
 	min-width: var(--container-xs);
+	background-color: var(--color-slate-100);
+	background-image:
+		linear-gradient(rgb(148 163 184 / 0.09) 1px, transparent 1px),
+		linear-gradient(90deg, rgb(148 163 184 / 0.09) 1px, transparent 1px);
+	background-size: 32px 32px;
+}
+
+::selection {
+	background: var(--color-blue-200);
+	color: var(--color-slate-950);
+}
+
+* {
+	scrollbar-color: var(--color-slate-400) transparent;
 }
 
 @layer components {
 	.markdown {
-		@apply prose prose-sm max-w-none font-mono text-slate-800 dark:text-slate-100 dark:prose-invert;
+		@apply prose prose-sm max-w-none font-mono leading-7 text-slate-800 dark:text-slate-100 dark:prose-invert;
 	}
 
 	.markdown :where(h1, h2, h3, h4, h5, h6) {
@@ -67,5 +82,28 @@ body {
 	:root {
 		color: var(--color-slate-100);
 		background: var(--color-slate-950);
+	}
+
+	body {
+		background-color: var(--color-slate-950);
+		background-image:
+			linear-gradient(rgb(71 85 105 / 0.14) 1px, transparent 1px),
+			linear-gradient(90deg, rgb(71 85 105 / 0.14) 1px, transparent 1px);
+	}
+
+	::selection {
+		background: var(--color-blue-800);
+		color: white;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		scroll-behavior: auto !important;
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
 	}
 }

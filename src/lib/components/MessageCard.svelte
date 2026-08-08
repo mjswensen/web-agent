@@ -15,26 +15,33 @@
 
 	let cardClass = $derived(
 		message.role === 'user'
-			? 'border-blue-200 bg-blue-50/70 dark:border-blue-900 dark:bg-blue-950/40'
+			? 'ml-auto w-[min(88%,48rem)] border-blue-300 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/45'
 			: message.role === 'assistant'
-				? 'border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900'
+				? 'mr-auto w-full border-slate-300 bg-white dark:border-slate-700 dark:bg-slate-900'
 				: message.role === 'tool'
-					? 'border-amber-200 bg-amber-50/70 dark:border-amber-900 dark:bg-amber-950/40'
-					: 'border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900'
+					? 'w-full border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40'
+					: 'w-full border-slate-300 bg-slate-50 dark:border-slate-700 dark:bg-slate-900'
 	);
 </script>
 
 <article
-	class={`rounded-lg border px-4 py-3 shadow-sm ${cardClass}`}
+	class={`relative border px-4 py-4 shadow-[0_1px_2px_rgb(15_23_42/0.05)] sm:px-5 ${cardClass}`}
 	aria-label={`${labelByRole[message.role]} message`}
 >
+	<span
+		class={`absolute top-0 bottom-0 left-0 w-1 ${message.role === 'user' ? 'bg-blue-500' : message.role === 'assistant' ? 'bg-slate-800 dark:bg-slate-300' : message.role === 'tool' ? 'bg-amber-500' : 'bg-slate-400'}`}
+		aria-hidden="true"
+	></span>
 	<header
-		class="mb-2 flex items-center gap-2 text-[11px] font-semibold tracking-[0.14em] text-slate-500 uppercase dark:text-slate-400"
+		class="mb-3 flex items-center gap-2 text-[10px] font-bold tracking-[0.18em] text-slate-500 uppercase dark:text-slate-400"
 	>
 		<span>{labelByRole[message.role]}</span>
+		<span class="h-px w-5 bg-slate-300 dark:bg-slate-700" aria-hidden="true"></span>
 		{#if message.isStreaming}
-			<span class="flex items-center gap-1 tracking-normal text-blue-600 normal-case">
-				<span class="h-1.5 w-1.5 animate-pulse rounded-full bg-blue-500"></span> streaming
+			<span
+				class="flex items-center gap-1.5 tracking-normal text-blue-700 normal-case dark:text-blue-300"
+			>
+				<span class="size-1.5 animate-pulse bg-blue-500"></span> responding
 			</span>
 		{/if}
 	</header>

@@ -34,11 +34,11 @@
 </script>
 
 <footer
-	class="border-t border-slate-200 bg-slate-50 px-4 py-2 text-[11px] text-slate-500 sm:px-6 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-400"
+	class="border-t border-slate-300 bg-slate-200/80 px-4 py-1.5 text-[10px] text-slate-600 sm:px-6 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-400"
 >
-	<div class="mx-auto flex w-full max-w-6xl flex-wrap justify-between gap-x-4 gap-y-1">
-		<span>{app.connection.statusMessage ?? 'Local Pi RPC connection'}</span>
-		<div class="flex flex-wrap justify-end gap-x-3 gap-y-1">
+	<div class="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-x-4 gap-y-1">
+		<span class="truncate tracking-wide">{app.connection.statusMessage ?? 'LOCAL PI RPC'}</span>
+		<div class="flex flex-wrap justify-end gap-x-3 gap-y-1 font-medium">
 			{#each Object.entries(app.extension.statuses) as [key, text] (key)}
 				<span title={`Extension status: ${key}`}>{text}</span>
 			{/each}

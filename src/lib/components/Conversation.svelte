@@ -70,27 +70,32 @@
 	<section
 		bind:this={scroller}
 		onscroll={updateScrollState}
-		class="h-full overflow-y-auto px-4 py-5 sm:px-6"
+		class="h-full overflow-y-auto px-4 py-6 sm:px-6 sm:py-8"
 		aria-label="Conversation"
 		aria-live="polite"
 	>
-		<div bind:this={content} class="mx-auto flex w-full max-w-4xl flex-col gap-4">
+		<div bind:this={content} class="mx-auto flex w-full max-w-5xl flex-col gap-6">
 			{#if app.conversation.messages.length === 0}
-				<div
-					class="grid min-h-52 place-items-center rounded-xl border border-dashed border-slate-300 bg-white/60 px-6 text-center shadow-sm dark:border-slate-700 dark:bg-slate-900/60"
-				>
-					<div>
+				<div class="grid min-h-64 place-items-center px-4 py-10 text-center">
+					<div class="max-w-xl">
+						<div class="mx-auto mb-6 flex w-fit items-center gap-1.5" aria-hidden="true">
+							<span class="h-px w-10 bg-slate-300 dark:bg-slate-700"></span>
+							<span class="size-2 bg-blue-500"></span>
+							<span class="h-px w-10 bg-slate-300 dark:bg-slate-700"></span>
+						</div>
 						<p
-							class="text-xs font-semibold tracking-[0.16em] text-blue-700 uppercase dark:text-blue-300"
+							class="text-[10px] font-bold tracking-[0.24em] text-blue-700 uppercase dark:text-blue-300"
 						>
-							Ready
+							Workspace ready
 						</p>
-						<h1 class="mt-2 text-lg font-semibold text-slate-800 dark:text-slate-100">
-							Start a focused Pi session
+						<h1
+							class="mt-3 text-2xl font-semibold tracking-[-0.05em] text-slate-900 sm:text-3xl dark:text-white"
+						>
+							What should Pi work on?
 						</h1>
-						<p class="mt-2 max-w-md text-sm leading-6 text-slate-500 dark:text-slate-400">
-							Send a task below. Pi will stream its work here while the editor stays ready for your
-							next instruction.
+						<p class="mx-auto mt-4 max-w-md text-sm leading-6 text-slate-600 dark:text-slate-400">
+							Describe an outcome, point to relevant files, or ask for an investigation. Progress,
+							tool calls, and changes will stream into this workspace.
 						</p>
 					</div>
 				</div>
@@ -116,7 +121,7 @@
 		<button
 			type="button"
 			aria-label="Scroll to bottom"
-			class="absolute right-4 bottom-3 z-10 min-h-11 min-w-11 rounded-full border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 shadow-lg focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none sm:right-6 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:focus:ring-offset-slate-950"
+			class="absolute right-4 bottom-3 z-10 min-h-11 min-w-11 border border-slate-300 bg-white px-4 text-xs font-bold text-slate-800 shadow-lg transition hover:border-blue-400 hover:text-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none sm:right-6 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:focus:ring-offset-slate-950"
 			onclick={() => void scrollToBottom()}
 		>
 			<span aria-hidden="true">↓</span> <span class="sr-only sm:not-sr-only">Latest</span>

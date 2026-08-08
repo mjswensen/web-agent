@@ -23,9 +23,10 @@
 	} = $props();
 
 	const overlayClasses = {
-		center: 'fixed inset-0 z-30 grid place-items-end bg-slate-950/30 p-3 sm:place-items-center',
-		top: 'fixed inset-0 z-30 bg-slate-950/20 p-3 sm:grid sm:place-items-start sm:pt-20',
-		drawer: 'fixed inset-0 z-30 bg-slate-950/30 p-3 sm:p-6'
+		center:
+			'fixed inset-0 z-30 grid place-items-end bg-slate-950/55 p-3 backdrop-blur-[2px] sm:place-items-center',
+		top: 'fixed inset-0 z-30 bg-slate-950/50 p-3 backdrop-blur-[2px] sm:grid sm:place-items-start sm:pt-20',
+		drawer: 'fixed inset-0 z-30 bg-slate-950/55 p-0 backdrop-blur-[2px] sm:p-4'
 	} as const;
 
 	const maxWidthClasses: Record<MaxWidth, string> = {
@@ -38,8 +39,8 @@
 	function panelClasses(kind: DialogKind, width: MaxWidth): string {
 		const widthClass = maxWidthClasses[width];
 		return kind === 'drawer'
-			? `ml-auto flex h-full w-full ${widthClass} flex-col rounded-xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900`
-			: `mx-auto w-full ${widthClass} overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900`;
+			? `ml-auto flex h-full w-full ${widthClass} flex-col border border-slate-300 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900`
+			: `mx-auto w-full ${widthClass} overflow-hidden border border-slate-300 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900`;
 	}
 </script>
 

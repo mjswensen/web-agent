@@ -82,10 +82,10 @@
 </script>
 
 <section
-	class="border-t border-slate-200 bg-white px-4 py-3 shadow-[0_-8px_24px_-20px_rgb(15_23_42/0.45)] sm:px-6 dark:border-slate-700 dark:bg-slate-900"
+	class="border-t border-slate-300 bg-white/95 px-4 py-3 shadow-[0_-12px_32px_-24px_rgb(15_23_42/0.65)] backdrop-blur-md sm:px-6 dark:border-slate-700 dark:bg-slate-900/95"
 	aria-label="Message editor"
 >
-	<div class="mx-auto flex w-full max-w-4xl flex-col gap-2">
+	<div class="mx-auto flex w-full max-w-5xl flex-col gap-2">
 		{#if !app.pi.available}
 			<p class="text-xs text-red-700">{app.pi.message ?? 'Pi is unavailable.'}</p>
 		{:else if app.connection.status !== 'connected'}
@@ -98,7 +98,7 @@
 			</p>
 		{/if}
 		<form
-			class="flex flex-col gap-2"
+			class="border border-slate-300 bg-slate-50 p-2 shadow-[3px_3px_0_rgb(148_163_184/0.25)] focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-200 dark:border-slate-700 dark:bg-slate-950 dark:shadow-none dark:focus-within:ring-blue-900"
 			onsubmit={(event) => {
 				event.preventDefault();
 				void submit();
@@ -112,49 +112,62 @@
 				onkeydown={editorKeydown}
 				rows={3}
 				placeholder={app.isAgentActive
-					? 'Steer the current run…'
-					: 'Describe the task you want Pi to do…'}
-				class="min-h-24 w-full resize-y bg-slate-50 transition outline-none placeholder:text-slate-400 disabled:cursor-not-allowed disabled:bg-slate-100"
+					? 'Add direction while Pi is working…'
+					: 'Describe the outcome you want…'}
+				class="min-h-20 w-full resize-y border-0 bg-transparent px-2 py-1 shadow-none transition outline-none placeholder:text-slate-400 focus:border-transparent focus:ring-0 disabled:cursor-not-allowed disabled:bg-slate-100 dark:bg-transparent dark:disabled:bg-slate-900"
 				disabled={!isConnected}
 			/>
-			<div class="flex justify-end gap-2">
-				{#if app.isAgentActive}
+			<div
+				class="mt-2 flex items-end justify-between gap-3 border-t border-slate-200 pt-2 dark:border-slate-800"
+			>
+				<div class="hidden min-w-0 pb-1 pl-2 text-[10px] leading-4 text-slate-500 sm:block">
+					<p>
+						{app.isAgentActive ? 'Steer adjusts the active run' : 'Send starts a new agent turn'}
+					</p>
+					<p class="text-slate-400">Command + Enter to {action.toLowerCase()}</p>
+				</div>
+				<div class="ml-auto flex justify-end gap-2">
+					{#if app.isAgentActive}
+						<Button
+							type="button"
+							variant="soft-red"
+							size="touch"
+							class="inline-flex min-w-11 shrink-0 items-center justify-center gap-2 !px-3"
+							title="Abort"
+							aria-label="Abort"
+							onclick={() => void abort()}
+							disabled={!isConnected}
+						>
+							<Icon name="stop" class="size-4" />
+							<span class="hidden sm:inline">Abort</span>
+						</Button>
+						<Button
+							type="button"
+							variant="soft-blue"
+							size="touch"
+							class="inline-flex min-w-11 shrink-0 items-center justify-center gap-2 !px-3"
+							title="Follow-up"
+							aria-label="Follow-up"
+							onclick={() => void queueFollowUp()}
+							disabled={!canSend}
+						>
+							<Icon name="arrow-turn-down-left" class="size-4" />
+							<span class="hidden sm:inline">Follow-up</span>
+						</Button>
+					{/if}
 					<Button
-						type="button"
-						variant="soft-red"
+						type="submit"
+						variant="primary"
 						size="touch"
-						class="inline-flex size-11 shrink-0 items-center justify-center !p-0"
-						title="Abort"
-						aria-label="Abort"
-						onclick={() => void abort()}
-						disabled={!isConnected}
-					>
-						<Icon name="stop" class="size-5" />
-					</Button>
-					<Button
-						type="button"
-						variant="soft-blue"
-						size="touch"
-						class="inline-flex size-11 shrink-0 items-center justify-center !p-0"
-						title="Follow-up"
-						aria-label="Follow-up"
-						onclick={() => void queueFollowUp()}
+						class="inline-flex min-w-11 shrink-0 items-center justify-center gap-2 !px-4"
+						title={action}
+						aria-label={action}
 						disabled={!canSend}
 					>
-						<Icon name="arrow-turn-down-left" class="size-5" />
+						<Icon name={app.isAgentActive ? 'cog-8-tooth' : 'paper-airplane'} class="size-4" />
+						<span class="hidden sm:inline">{action}</span>
 					</Button>
-				{/if}
-				<Button
-					type="submit"
-					variant="primary"
-					size="touch"
-					class="inline-flex size-11 shrink-0 items-center justify-center !p-0"
-					title={action}
-					aria-label={action}
-					disabled={!canSend}
-				>
-					<Icon name={app.isAgentActive ? 'cog-8-tooth' : 'paper-airplane'} class="size-5" />
-				</Button>
+				</div>
 			</div>
 		</form>
 	</div>
