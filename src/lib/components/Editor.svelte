@@ -3,6 +3,7 @@
 	import type { AppState } from '$lib/state/app-state.svelte';
 	import Button from './core/Button.svelte';
 	import Textarea from './core/Textarea.svelte';
+	import Icon from './Icon.svelte';
 
 	let { app, client }: { app: AppState; client: WebAgentWebSocketClient | undefined } = $props();
 
@@ -97,7 +98,7 @@
 			</p>
 		{/if}
 		<form
-			class="flex items-end gap-2"
+			class="flex flex-col gap-2"
 			onsubmit={(event) => {
 				event.preventDefault();
 				void submit();
@@ -113,33 +114,48 @@
 				placeholder={app.isAgentActive
 					? 'Steer the current run…'
 					: 'Describe the task you want Pi to do…'}
-				class="min-h-24 flex-1 resize-y bg-slate-50 transition outline-none placeholder:text-slate-400 disabled:cursor-not-allowed disabled:bg-slate-100"
+				class="min-h-24 w-full resize-y bg-slate-50 transition outline-none placeholder:text-slate-400 disabled:cursor-not-allowed disabled:bg-slate-100"
 				disabled={!isConnected}
 			/>
-			<div class="flex flex-col gap-2">
-				<Button type="submit" variant="primary" size="touch" class="min-w-24" disabled={!canSend}>
-					{sending ? 'Sending…' : action}
-				</Button>
+			<div class="flex justify-end gap-2">
 				{#if app.isAgentActive}
 					<Button
-						variant="soft-blue"
-						size="touch"
-						class="min-w-24"
-						onclick={() => void queueFollowUp()}
-						disabled={!canSend}>Follow-up</Button
-					>
-					<Button
+						type="button"
 						variant="soft-red"
 						size="touch"
-						class="min-w-24"
+						class="inline-flex size-11 shrink-0 items-center justify-center !p-0"
+						title="Abort"
+						aria-label="Abort"
 						onclick={() => void abort()}
-						disabled={!isConnected}>Abort</Button
+						disabled={!isConnected}
 					>
+						<Icon name="stop" class="size-5" />
+					</Button>
+					<Button
+						type="button"
+						variant="soft-blue"
+						size="touch"
+						class="inline-flex size-11 shrink-0 items-center justify-center !p-0"
+						title="Follow-up"
+						aria-label="Follow-up"
+						onclick={() => void queueFollowUp()}
+						disabled={!canSend}
+					>
+						<Icon name="arrow-turn-down-left" class="size-5" />
+					</Button>
 				{/if}
+				<Button
+					type="submit"
+					variant="primary"
+					size="touch"
+					class="inline-flex size-11 shrink-0 items-center justify-center !p-0"
+					title={action}
+					aria-label={action}
+					disabled={!canSend}
+				>
+					<Icon name={app.isAgentActive ? 'cog-8-tooth' : 'paper-airplane'} class="size-5" />
+				</Button>
 			</div>
 		</form>
-		<p class="text-[11px] leading-4 text-slate-500 dark:text-slate-400">
-			Enter adds a new line. Use ⌘ Enter or {action} to deliver this message.
-		</p>
 	</div>
 </section>
