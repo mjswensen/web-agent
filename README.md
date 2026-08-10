@@ -18,6 +18,24 @@ npm install --global web-agent
 web-agent
 ```
 
+Or install the latest standalone binary from GitHub Releases:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/mjswensen/web-agent/main/install.sh | sh
+web-agent
+```
+
+> `install.sh` supports Linux and macOS. Windows users can download `web-agent-windows-x64.exe`
+> from the latest release assets.
+
+Standalone releases currently include:
+
+- Linux x64
+- Linux arm64
+- macOS x64
+- macOS arm64
+- Windows x64
+
 Or run a checked-out repository:
 
 ```sh
