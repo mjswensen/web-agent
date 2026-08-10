@@ -47,9 +47,11 @@ jobs:
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: main-${{ github.sha }}
-          name: main-${{ github.sha }}
-          generate_release_notes: true
+          tag_name: main-latest
+          name: main @ ${{ github.sha }}
+          body: |
+            Rolling release from `main` at commit `${{ github.sha }}`.
+          make_latest: true
           files: |
             dist/web-agent-linux-x64
             dist/web-agent-linux-arm64

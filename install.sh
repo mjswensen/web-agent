@@ -33,9 +33,7 @@ resolve_tag() {
 		return
 	fi
 
-	curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" \
-		| sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' \
-		| head -n 1
+	echo 'main-latest'
 }
 
 os="$(detect_os)"
@@ -43,8 +41,19 @@ arch="$(detect_arch)"
 asset="${BIN_NAME}-${os}-${arch}"
 install_dir="${WEB_AGENT_INSTALL_DIR:-/usr/local/bin}"
 
-if [ ! -w "$install_dir" ]; then
-	install_dir="${HOME}/.local/bin"
+if [ -n "${WEB_AGENT_INSTALL_DIR:-}" ]; then
+	mkdir -p "$install_dir"
+	if [ ! -w "$install_dir" ]; then
+		echo "Install directory is not writable: ${install_dir}" >&2
+		exit 1
+	fi
+else
+	if [ ! -d "$install_dir" ] && ! mkdir -p "$install_dir" 2>/dev/null; then
+		install_dir="${HOME}/.local/bin"
+	fi
+	if [ ! -w "$install_dir" ]; then
+		install_dir="${HOME}/.local/bin"
+	fi
 fi
 
 mkdir -p "$install_dir"

@@ -25,6 +25,9 @@ curl -fsSL https://raw.githubusercontent.com/mjswensen/web-agent/main/install.sh
 web-agent
 ```
 
+> `install.sh` supports Linux and macOS. Windows users can download `web-agent-windows-x64.exe`
+> from the latest release assets.
+
 Standalone releases currently include:
 
 - Linux x64
