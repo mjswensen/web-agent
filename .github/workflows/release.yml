@@ -15,42 +15,33 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Setup Node
-        uses: actions/setup-node@v5
+      - name: Read package version
+        id: package_version
+        run: echo "version=$(node -p \"JSON.parse(require('node:fs').readFileSync('package.json', 'utf8')).version\")" >> "$GITHUB_OUTPUT"
+
+      - name: Build runtime and standalone binaries
+        uses: devcontainers/ci@v0.3
         with:
-          node-version: 22
-          cache: npm
+          runCmd: |
+            set -eu
+            curl -fsSL https://bun.sh/install | bash
+            export PATH="${HOME}/.bun/bin:${PATH}"
+            npm ci
+            npm run build
+            mkdir -p dist
+            bun build ./build/server-runtime/server/entry.js --compile --minify --bytecode --target=bun-linux-x64 --outfile=dist/web-agent-linux-x64
+            bun build ./build/server-runtime/server/entry.js --compile --minify --bytecode --target=bun-linux-arm64 --outfile=dist/web-agent-linux-arm64
+            bun build ./build/server-runtime/server/entry.js --compile --minify --bytecode --target=bun-darwin-x64 --outfile=dist/web-agent-darwin-x64
+            bun build ./build/server-runtime/server/entry.js --compile --minify --bytecode --target=bun-darwin-arm64 --outfile=dist/web-agent-darwin-arm64
+            bun build ./build/server-runtime/server/entry.js --compile --minify --bytecode --target=bun-windows-x64 --outfile=dist/web-agent-windows-x64.exe
+            cp ./install.sh ./dist/install.sh
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build runtime
-        run: npm run build
-
-      - name: Build standalone binaries
-        run: |
-          mkdir -p dist
-          bun build ./build/server-runtime/server/entry.js --compile --minify --bytecode --target=bun-linux-x64 --outfile=dist/web-agent-linux-x64
-          bun build ./build/server-runtime/server/entry.js --compile --minify --bytecode --target=bun-linux-arm64 --outfile=dist/web-agent-linux-arm64
-          bun build ./build/server-runtime/server/entry.js --compile --minify --bytecode --target=bun-darwin-x64 --outfile=dist/web-agent-darwin-x64
-          bun build ./build/server-runtime/server/entry.js --compile --minify --bytecode --target=bun-darwin-arm64 --outfile=dist/web-agent-darwin-arm64
-          bun build ./build/server-runtime/server/entry.js --compile --minify --bytecode --target=bun-windows-x64 --outfile=dist/web-agent-windows-x64.exe
-
-      - name: Copy installer script
-        run: cp ./install.sh ./dist/install.sh
-
-      - name: Publish release
+      - name: Publish versioned release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: main-latest
-          name: main @ ${{ github.sha }}
-          body: |
-            Rolling release from `main` at commit `${{ github.sha }}`.
+          tag_name: v${{ steps.package_version.outputs.version }}
+          name: v${{ steps.package_version.outputs.version }}
+          target_commitish: ${{ github.sha }}
           make_latest: true
           files: |
             dist/web-agent-linux-x64

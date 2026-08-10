@@ -33,7 +33,9 @@ resolve_tag() {
 		return
 	fi
 
-	echo 'main-latest'
+	curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" \
+		| sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' \
+		| head -n 1
 }
 
 os="$(detect_os)"
