@@ -2,6 +2,7 @@
 import { spawn } from 'node:child_process';
 import process from 'node:process';
 import type { AddressInfo } from 'node:net';
+import packageJson from '../../package.json' with { type: 'json' };
 import { CLI_HELP, parseCliArgs } from './cli.js';
 import { createWebAgentRuntime, listenOnAvailablePort } from './main.js';
 
@@ -35,7 +36,7 @@ try {
 	const runtime = await createWebAgentRuntime(handler, { argv, cwd: process.cwd() });
 	const address: AddressInfo = await listenOnAvailablePort(runtime, cli.host, cli.port);
 	const url = localUrl(cli.host, address.port);
-	console.log(`Web Agent listening at ${url}`);
+	console.log(`Web Agent v${packageJson.version} listening at ${url}`);
 	if (cli.open) openBrowser(url);
 
 	let closing = false;

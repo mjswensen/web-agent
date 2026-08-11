@@ -13,7 +13,7 @@
 	],
 	"scripts": {
 		"dev": "vite dev --host 0.0.0.0 --port 5100",
-		"build": "vite build && tsc -p tsconfig.server.json",
+		"build": "vite build && tsc -p tsconfig.server.json && node -e \"require('node:fs').copyFileSync('package.json', 'build/package.json')\"",
 		"prepack": "npm run precommit && npm run build",
 		"start": "node build/server-runtime/server/entry.js",
 		"precommit": "npm run build && npm run check && npm run lint && npm run test && echo '\nprecommit OK ✅'",
