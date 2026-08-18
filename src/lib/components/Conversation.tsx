@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { useAppState } from '$lib/state/app-context';
 import { isConversationAtBottom, scrollConversationToBottom } from './conversation-scroll';
 import { MessageCard } from './MessageCard';
@@ -12,7 +12,7 @@ export function Conversation() {
 	const showScrollButtonRef = useRef(false);
 
 	// We need to track scroll state imperatively to avoid unnecessary re-renders
-	const [, forceUpdate] = React.useState(0);
+	const [, forceUpdate] = useState(0);
 
 	function toolsFor(messageId: string) {
 		return app.conversation.tools.filter((tool) => tool.parentMessageId === messageId);
@@ -138,4 +138,3 @@ export function Conversation() {
 	);
 }
 
-import React from 'react';

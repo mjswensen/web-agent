@@ -88,7 +88,7 @@ The main composition is `src/lib/components/AppShell.tsx`:
 
 Conversation reduction is pure code in `src/lib/state/event-reducer.ts`. It hydrates durable history, keeps thinking separate from visible assistant text, upserts streaming assistant messages and tool cards by stable IDs, and preserves edit diffs. Footer formatting is pure code in `src/lib/state/footer.ts`; absent Pi metrics display as `—`, not fabricated zeroes.
 
-Use Svelte 5 conventions already established in the repository: `$state`, `$derived`, `$props`, `onclick`, and snippets. New components use functional components with hooks. Keep the UI Tailwind-only with the default palette and the system monospace stack; Pi theme JSON is intentionally out of scope.
+Use React functional components with hooks (`useState`, `useEffect`, `useContext`, `useSyncExternalStore`). Keep the UI Tailwind-only with the default palette and the system monospace stack; Pi theme JSON is intentionally out of scope.
 
 ## Source map
 
