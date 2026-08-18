@@ -4,7 +4,7 @@
 		"module": "NodeNext",
 		"moduleResolution": "NodeNext",
 		"rootDir": "./src",
-		"outDir": "./build/server-runtime",
+		"outDir": "./build/server",
 		"noEmit": false,
 		"declaration": false,
 		"sourceMap": false,
@@ -12,5 +12,5 @@
 		"checkJs": false
 	},
 	"include": ["src/server/**/*.ts", "src/lib/client/protocol.ts"],
-	"exclude": ["src/**/*.spec.ts", "src/**/*.test.ts", "src/server/vite-websocket.ts"]
+	"exclude": ["src/**/*.spec.ts", "src/**/*.test.ts"]
 }

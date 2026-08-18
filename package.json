@@ -8,7 +8,7 @@
 		"bun": ">=1.3.14"
 	},
 	"bin": {
-		"web-agent": "./build/server-runtime/server/entry.js"
+		"web-agent": "./build/server/server/entry.js"
 	},
 	"files": [
 		"build",
@@ -16,15 +16,15 @@
 		"LICENSE"
 	],
 	"scripts": {
-		"dev": "bun --bun vite dev --host 0.0.0.0 --port 5100",
+		"dev": "bun --watch src/server/entry.ts",
+		"dev:client": "bun --bun vite dev --host 0.0.0.0 --port 5100",
 		"build": "bun --bun vite build && bun --bun tsc -p tsconfig.server.json && bun run scripts/prepare-package.ts",
 		"prepack": "bun run precommit && bun run build",
-		"start": "bun build/server-runtime/server/entry.js",
+		"start": "bun build/server/server/entry.js",
 		"precommit": "bun run build && bun run check && bun run lint && bun run test && echo '\nprecommit OK ✅'",
-		"preview": "bun --bun vite preview",
-		"prepare": "bun --bun svelte-kit sync || echo ''",
-		"check": "bun --bun svelte-kit sync && bun --bun svelte-check --tsconfig ./tsconfig.json",
-		"check:watch": "bun --bun svelte-kit sync && bun --bun svelte-check --tsconfig ./tsconfig.json --watch",
+		"preview": "bun build/server/server/entry.js",
+		"check": "bun --bun svelte-check --tsconfig ./tsconfig.json",
+		"check:watch": "bun --bun svelte-check --tsconfig ./tsconfig.json --watch",
 		"lint": "bun --bun prettier --check . && bun --bun eslint .",
 		"format": "bun --bun prettier --write .",
 		"test:unit": "bun --bun vitest --run",
@@ -35,8 +35,6 @@
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",
 		"@playwright/test": "^1.60.0",
-		"@eslym/sveltekit-adapter-bun": "^2.1.3",
-		"@sveltejs/kit": "^2.63.0",
 		"@sveltejs/vite-plugin-svelte": "^7.1.2",
 		"@tailwindcss/forms": "^0.5.11",
 		"@tailwindcss/typography": "^0.5.19",
