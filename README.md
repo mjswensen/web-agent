@@ -115,12 +115,12 @@ bun install --frozen-lockfile
 bun run dev
 ```
 
-`bun run dev` starts the Vite/Svelte development UI and attaches the Pi/WebSocket runtime to Vite's HTTP server. For the production adapter-bun runtime, use `bun run build && bun start`.
+`bun run dev` starts the development server with --watch (manual browser reload on changes). For the production adapter-bun runtime, use `bun run build && bun start`.
 
 Useful checks:
 
 ```sh
-bun run check       # Svelte and TypeScript diagnostics
+bun run check       # TypeScript diagnostics
 bun run lint        # Prettier and ESLint
 bun run test:unit   # Vitest unit tests
 bun run test:e2e    # Playwright browser tests

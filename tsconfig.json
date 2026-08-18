@@ -13,11 +13,12 @@
 		"moduleResolution": "bundler",
 		"module": "ESNext",
 		"target": "ESNext",
+		"jsx": "react-jsx",
 		"paths": {
 			"$lib": ["./src/lib"],
 			"$lib/*": ["./src/lib/*"]
 		}
 	},
-	"include": ["src/**/*.ts", "src/**/*.svelte"],
+	"include": ["src/**/*.ts", "src/**/*.tsx"],
 	"exclude": ["node_modules", "build"]
 }

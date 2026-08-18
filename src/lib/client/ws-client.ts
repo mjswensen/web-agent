@@ -1,4 +1,4 @@
-import type { AppState } from '../state/app-state.svelte.js';
+import type { AppState } from '../state/app-state.js';
 import {
 	parseServerFrame,
 	type BrowserCommand,

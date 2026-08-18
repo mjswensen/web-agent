@@ -15,7 +15,5 @@ Thumbs.db
 !.env.test
 
 # Vite
-vite.config.js.timestamp-*
-vite.config.ts.timestamp-*
 # Playwright
 test-results
