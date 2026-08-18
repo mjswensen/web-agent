@@ -7,6 +7,7 @@ import {
 	type ResponseFrame,
 	type ServerFrame
 } from './protocol.js';
+import { createViteHotSocket } from './vite-hot-socket.js';
 
 export interface WebSocketClientOptions {
 	state: AppState;
@@ -64,7 +65,9 @@ export class WebAgentWebSocketClient {
 	private readonly webSocketFactory: (url: string) => WebSocket;
 
 	constructor(private readonly options: WebSocketClientOptions) {
-		this.webSocketFactory = options.webSocketFactory ?? ((url) => new WebSocket(url));
+		this.webSocketFactory =
+			options.webSocketFactory ??
+			((url) => (import.meta.hot ? createViteHotSocket(import.meta.hot) : new WebSocket(url)));
 	}
 
 	connect(): void {

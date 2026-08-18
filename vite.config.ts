@@ -16,7 +16,7 @@ function webAgentRuntime(): Plugin {
 				argv: [],
 				cwd: process.cwd()
 			});
-			const webSockets = installViteWebSocketServer(vite.httpServer, runtime.broker);
+			const webSockets = installViteWebSocketServer(vite.ws, runtime.broker);
 			vite.httpServer.once('close', () => {
 				void webSockets.close().finally(() => runtime.close());
 			});

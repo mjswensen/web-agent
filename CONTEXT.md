@@ -28,7 +28,7 @@ Browser tab(s) -- WebSocket /ws --> one Bun.serve/SvelteKit server
                                             `-- pi --mode rpc [forwarded Pi args]
 ```
 
-`src/server/main.ts` owns the shared Pi/broker composition. Production `src/server/entry.ts` selects the CLI host/port, initializes the runtime, and imports adapter-bun's documented `build/index.js` runtime entry. `src/hooks.server.ts` upgrades only `/ws` on that same native `Bun.serve` instance. Development uses the `webAgentRuntime` plugin and the development-only `src/server/vite-websocket.ts` bridge on Vite's own listener, leaving Vite HMR upgrades alone. Do not add a second application server.
+`src/server/main.ts` owns the shared Pi/broker composition. Production `src/server/entry.ts` selects the CLI host/port, initializes the runtime, and imports adapter-bun's documented `build/index.js` runtime entry. `src/hooks.server.ts` upgrades only `/ws` on that same native `Bun.serve` instance. Development uses the `webAgentRuntime` plugin and tunnels broker frames through Vite's existing HMR custom-event channel, avoiding a competing upgrade listener while preserving HMR. Do not add a second application server.
 
 ### Pi process and lifecycle
 
@@ -53,7 +53,7 @@ The intended CLI defaults and forwarding are:
 
 ## RPC and browser protocol
 
-`src/lib/client/protocol.ts` is the shared protocol type/validation source for browser frames. `src/server/websocket.ts` parses and validates one JSON WebSocket frame at a time and owns Bun's `/ws` connection lifecycle. The development-only Vite bridge leaves other upgrades (notably HMR) alone.
+`src/lib/client/protocol.ts` is the shared protocol type/validation source for browser frames. `src/server/websocket.ts` parses and validates one JSON WebSocket frame at a time and owns Bun's `/ws` connection lifecycle. The development-only Vite bridge reuses HMR custom events instead of installing another upgrade listener.
 
 `src/server/rpc-broker.ts` is transport-independent and owns:
 
@@ -118,7 +118,7 @@ src/
   server/entry.ts                 Bun production CLI and adapter runtime launcher
   server/port.ts                  Bun-native port fallback selection
   server/runtime-context.ts       Process-global production runtime handoff
-  server/vite-websocket.ts        Development-only Vite WebSocket bridge
+  server/vite-websocket.ts        Development-only Vite HMR channel bridge
 ```
 
 Tests live beside the implementation as `*.spec.ts` and `*.svelte.spec.ts`; browser E2E tests are `*.e2e.ts` under `src/routes` and demo fixtures.

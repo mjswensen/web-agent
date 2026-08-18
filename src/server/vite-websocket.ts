@@ -1,69 +1,100 @@
-import type { IncomingMessage, Server } from 'node:http';
-import type { Duplex } from 'node:stream';
-import { Buffer } from 'node:buffer';
-import type { HttpServer } from 'vite';
-import { WebSocket, WebSocketServer, type RawData } from 'ws';
+import type { WebSocketClient, WebSocketServer } from 'vite';
 import type { RpcBroker } from './rpc-broker.js';
-import { connectBrowserClient, type WebSocketHub } from './websocket.js';
+import { connectBrowserClient, type BrowserConnection, type WebSocketHub } from './websocket.js';
 
-function parseMessage(data: RawData): string {
-	if (Array.isArray(data)) return Buffer.concat(data).toString('utf8');
-	if (data instanceof ArrayBuffer) return Buffer.from(data).toString('utf8');
-	return data.toString('utf8');
+interface ChannelPayload {
+	connectionId: string;
+	text?: string;
 }
 
-function requestPath(request: IncomingMessage): string | undefined {
-	if (!request.url) return undefined;
-	try {
-		return new URL(request.url, 'http://localhost').pathname;
-	} catch {
+type Socket = WebSocketClient['socket'];
+
+function payload(value: unknown): ChannelPayload | undefined {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+	const candidate = value as Record<string, unknown>;
+	if (
+		typeof candidate.connectionId !== 'string' ||
+		candidate.connectionId.length === 0 ||
+		candidate.connectionId.length > 200
+	) {
 		return undefined;
 	}
+	if (candidate.text !== undefined && typeof candidate.text !== 'string') return undefined;
+	return {
+		connectionId: candidate.connectionId,
+		...(typeof candidate.text === 'string' ? { text: candidate.text } : {})
+	};
 }
 
 /**
- * Development-only bridge for Vite's Node-compatible listener. Non-application
- * upgrades are left to Vite, so its HMR WebSocket remains unaffected.
+ * Development-only broker bridge over Vite's existing HMR channel. Reusing the
+ * channel avoids a second upgrade listener while leaving HMR traffic untouched.
  */
 export function installViteWebSocketServer(
-	server: HttpServer,
-	broker: RpcBroker,
-	path = '/ws'
+	server: WebSocketServer,
+	broker: RpcBroker
 ): WebSocketHub {
-	const webSocketServer = new WebSocketServer({ noServer: true });
-	const sockets = new Map<WebSocket, ReturnType<typeof connectBrowserClient>>();
+	const sockets = new Map<Socket, Map<string, BrowserConnection>>();
 
-	(server as Server).on('upgrade', (request: IncomingMessage, socket: Duplex, head: Buffer) => {
-		if (requestPath(request) !== path) return;
-		webSocketServer.handleUpgrade(request, socket, head, (webSocket) => {
-			webSocketServer.emit('connection', webSocket, request);
-		});
-	});
+	const onConnect = (value: unknown, client: WebSocketClient) => {
+		const frame = payload(value);
+		if (!frame) return;
+		let connections = sockets.get(client.socket);
+		if (!connections) {
+			connections = new Map();
+			sockets.set(client.socket, connections);
+		}
+		if (!connections.has(frame.connectionId)) {
+			connections.set(
+				frame.connectionId,
+				connectBrowserClient(broker, crypto.randomUUID(), (text) => {
+					client.send('web-agent:frame', { connectionId: frame.connectionId, text });
+				})
+			);
+		}
+		client.send('web-agent:open', { connectionId: frame.connectionId });
+	};
 
-	webSocketServer.on('connection', (socket) => {
-		const connection = connectBrowserClient(broker, crypto.randomUUID(), (text) => {
-			if (socket.readyState === WebSocket.OPEN) socket.send(text);
-		});
-		sockets.set(socket, connection);
-		socket.on('message', (data) => void connection.receive(parseMessage(data)));
-		socket.once('close', () => {
-			connection.close();
-			sockets.delete(socket);
-		});
-		socket.once('error', () => socket.close());
-	});
+	const onMessage = (value: unknown, client: WebSocketClient) => {
+		const frame = payload(value);
+		if (frame?.text === undefined) return;
+		void sockets.get(client.socket)?.get(frame.connectionId)?.receive(frame.text);
+	};
+
+	const onDisconnect = (value: unknown, client: WebSocketClient) => {
+		const frame = payload(value);
+		if (!frame) return;
+		const connections = sockets.get(client.socket);
+		connections?.get(frame.connectionId)?.close();
+		connections?.delete(frame.connectionId);
+		if (connections?.size === 0) sockets.delete(client.socket);
+	};
+
+	const onSocketClose = (_value: unknown, client: WebSocketClient) => {
+		for (const connection of sockets.get(client.socket)?.values() ?? []) connection.close();
+		sockets.delete(client.socket);
+	};
+
+	server.on('web-agent:connect', onConnect);
+	server.on('web-agent:message', onMessage);
+	server.on('web-agent:disconnect', onDisconnect);
+	server.on('vite:client:disconnect', onSocketClose);
 
 	return {
-		clientCount: () => sockets.size,
+		clientCount: () => {
+			let count = 0;
+			for (const connections of sockets.values()) count += connections.size;
+			return count;
+		},
 		close: async () => {
-			for (const [socket, connection] of sockets) {
-				connection.close();
-				socket.close(1001, 'Server shutting down');
+			server.off('web-agent:connect', onConnect);
+			server.off('web-agent:message', onMessage);
+			server.off('web-agent:disconnect', onDisconnect);
+			server.off('vite:client:disconnect', onSocketClose);
+			for (const connections of sockets.values()) {
+				for (const connection of connections.values()) connection.close();
 			}
 			sockets.clear();
-			await new Promise<void>((resolve, reject) => {
-				webSocketServer.close((error) => (error ? reject(error) : resolve()));
-			});
 		}
 	};
 }
