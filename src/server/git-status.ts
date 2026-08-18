@@ -1,7 +1,3 @@
-import { spawn } from 'node:child_process';
-import { randomUUID } from 'node:crypto';
-import { StringDecoder } from 'node:string_decoder';
-
 export interface GitFileStatus {
 	path: string;
 	originalPath?: string;
@@ -74,53 +70,69 @@ const DEFAULT_CONCURRENCY = 4;
 const FULL_DIFF_TIMEOUT_MS = 120_000;
 const DIFF_TOKEN_TTL_MS = 5 * 60_000;
 
-/** Runs only fixed Git argument arrays. It deliberately never invokes a shell. */
+async function readStream(
+	stream: ReadableStream<Uint8Array>,
+	onChunk: (chunk: Uint8Array) => void
+): Promise<void> {
+	const reader = stream.getReader();
+	try {
+		while (true) {
+			const { done, value } = await reader.read();
+			if (done) return;
+			onChunk(value);
+		}
+	} finally {
+		reader.releaseLock();
+	}
+}
+
+/** Runs only fixed Git argument arrays through Bun.spawn and never invokes a shell. */
 export class SpawnGitCommandRunner implements GitCommandRunner {
 	async run(command: GitCommand): Promise<GitCommandResult> {
 		const maxOutputBytes = command.maxOutputBytes ?? DEFAULT_MAX_OUTPUT_BYTES;
 		const timeoutMs = command.timeoutMs ?? DEFAULT_TIMEOUT_MS;
-		return new Promise((resolve, reject) => {
-			const child = spawn('git', [...command.args], {
-				shell: false,
-				stdio: ['pipe', 'pipe', 'pipe'],
-				env: { ...process.env, GIT_PAGER: 'cat', PAGER: 'cat', GIT_TERMINAL_PROMPT: '0' }
-			});
-			let stdout = Buffer.alloc(0);
-			let stderr = Buffer.alloc(0);
-			let outputBytes = 0;
-			let timedOut = false;
-			let outputLimited = false;
-			const append = (current: Buffer, chunk: Buffer) => {
-				const allowed = Math.max(0, maxOutputBytes - outputBytes);
-				const accepted = chunk.subarray(0, allowed);
-				outputBytes += accepted.length;
-				if (accepted.length !== chunk.length) {
-					outputLimited = true;
-					child.kill();
-				}
-				return Buffer.concat([current, accepted]);
-			};
-			const timer = setTimeout(() => {
-				timedOut = true;
-				child.kill();
-			}, timeoutMs);
-			child.once('error', (error) => {
-				clearTimeout(timer);
-				reject(error);
-			});
-			child.stdout.on('data', (chunk: Buffer) => {
-				stdout = append(stdout, chunk);
-			});
-			child.stderr.on('data', (chunk: Buffer) => {
-				stderr = append(stderr, chunk);
-			});
-			child.once('close', (code) => {
-				clearTimeout(timer);
-				resolve({ code, stdout, stderr, timedOut, outputLimited });
-			});
-			if (command.input) child.stdin.end(command.input);
-			else child.stdin.end();
+		const child = Bun.spawn({
+			cmd: ['git', ...command.args],
+			stdin: command.input ?? 'ignore',
+			stdout: 'pipe',
+			stderr: 'pipe',
+			env: { ...process.env, GIT_PAGER: 'cat', PAGER: 'cat', GIT_TERMINAL_PROMPT: '0' }
 		});
+		const stdoutChunks: Buffer[] = [];
+		const stderrChunks: Buffer[] = [];
+		let outputBytes = 0;
+		let timedOut = false;
+		let outputLimited = false;
+		const append = (target: Buffer[], chunk: Uint8Array) => {
+			const allowed = Math.max(0, maxOutputBytes - outputBytes);
+			const accepted = chunk.subarray(0, allowed);
+			outputBytes += accepted.length;
+			if (accepted.length > 0) target.push(Buffer.from(accepted));
+			if (accepted.length !== chunk.length && !outputLimited) {
+				outputLimited = true;
+				child.kill('SIGTERM');
+			}
+		};
+		const timer = setTimeout(() => {
+			timedOut = true;
+			child.kill('SIGTERM');
+		}, timeoutMs);
+		try {
+			await Promise.all([
+				child.exited,
+				readStream(child.stdout, (chunk) => append(stdoutChunks, chunk)),
+				readStream(child.stderr, (chunk) => append(stderrChunks, chunk))
+			]);
+			return {
+				code: child.exitCode,
+				stdout: Buffer.concat(stdoutChunks),
+				stderr: Buffer.concat(stderrChunks),
+				timedOut,
+				outputLimited
+			};
+		} finally {
+			clearTimeout(timer);
+		}
 	}
 }
 
@@ -463,43 +475,40 @@ export class DefaultGitStatusProvider implements GitStatusProvider {
 		this.discardExpiredDiffRequests();
 		const request = this.diffRequests.get(token);
 		if (!request) throw new Error('This diff preview has expired. Refresh Changes and try again.');
-		return new Promise((resolve, reject) => {
-			const child = spawn('git', request.args, {
-				shell: false,
-				stdio: ['ignore', 'pipe', 'pipe'],
-				env: { ...process.env, GIT_PAGER: 'cat', PAGER: 'cat', GIT_TERMINAL_PROMPT: '0' }
-			});
-			const decoder = new StringDecoder('utf8');
-			let timedOut = false;
-			const timer = setTimeout(() => {
-				timedOut = true;
-				child.kill();
-			}, FULL_DIFF_TIMEOUT_MS);
-			child.once('error', (error) => {
-				clearTimeout(timer);
-				reject(error);
-			});
-			child.stdout.on('data', (chunk: Buffer) => {
-				const text = decoder.write(chunk);
-				if (text) onChunk(text);
-			});
-			child.stderr.resume();
-			child.once('close', (code) => {
-				clearTimeout(timer);
-				const trailing = decoder.end();
-				if (trailing) onChunk(trailing);
-				if (timedOut) {
-					reject(new Error('Git timed out while loading the full diff.'));
-					return;
-				}
-				if (code === 0 || (request.acceptDifference && code === 1)) resolve();
-				else reject(new Error('Git could not load the full diff.'));
-			});
+		const child = Bun.spawn({
+			cmd: ['git', ...request.args],
+			stdin: 'ignore',
+			stdout: 'pipe',
+			stderr: 'ignore',
+			env: { ...process.env, GIT_PAGER: 'cat', PAGER: 'cat', GIT_TERMINAL_PROMPT: '0' }
 		});
+		const decoder = new TextDecoder('utf-8');
+		let timedOut = false;
+		const timer = setTimeout(() => {
+			timedOut = true;
+			child.kill('SIGTERM');
+		}, FULL_DIFF_TIMEOUT_MS);
+		try {
+			await Promise.all([
+				child.exited,
+				readStream(child.stdout, (chunk) => {
+					const text = decoder.decode(chunk, { stream: true });
+					if (text) onChunk(text);
+				})
+			]);
+			const trailing = decoder.decode();
+			if (trailing) onChunk(trailing);
+			if (timedOut) throw new Error('Git timed out while loading the full diff.');
+			if (child.exitCode !== 0 && !(request.acceptDifference && child.exitCode === 1)) {
+				throw new Error('Git could not load the full diff.');
+			}
+		} finally {
+			clearTimeout(timer);
+		}
 	}
 
 	private registerDiff(args: string[], acceptDifference: boolean): string {
-		const token = randomUUID();
+		const token = crypto.randomUUID();
 		this.diffRequests.set(token, {
 			args,
 			acceptDifference,

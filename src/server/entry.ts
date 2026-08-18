@@ -1,10 +1,9 @@
-#!/usr/bin/env node
-import { spawn } from 'node:child_process';
-import process from 'node:process';
-import type { AddressInfo } from 'node:net';
+#!/usr/bin/env bun
 import packageJson from '../../package.json' with { type: 'json' };
 import { CLI_HELP, parseCliArgs } from './cli.js';
-import { createWebAgentRuntime, listenOnAvailablePort } from './main.js';
+import { createWebAgentRuntime } from './main.js';
+import { findAvailablePort } from './port.js';
+import { clearWebAgentRuntime, setWebAgentRuntime } from './runtime-context.js';
 
 function localUrl(host: string, port: number): string {
 	return `http://${host.includes(':') ? `[${host}]` : host}:${port}`;
@@ -17,7 +16,12 @@ function openBrowser(url: string): void {
 			: process.platform === 'win32'
 				? { executable: 'cmd', args: ['/c', 'start', '', url] }
 				: { executable: 'xdg-open', args: [url] };
-	const child = spawn(command.executable, command.args, { detached: true, stdio: 'ignore' });
+	const child = Bun.spawn({
+		cmd: [command.executable, ...command.args],
+		stdin: 'ignore',
+		stdout: 'ignore',
+		stderr: 'ignore'
+	});
 	child.unref();
 }
 
@@ -29,25 +33,37 @@ if (process.argv.slice(2).some((argument) => argument === '--help' || argument =
 try {
 	const argv = process.argv.slice(2);
 	const cli = parseCliArgs(argv);
-	// This file compiles to build/server-runtime/server; from there the adapter
-	// output is ../../handler.js. Dynamic loading keeps generated code out of
-	// the source TypeScript project.
-	const { handler } = await import('../../' + 'handler.js');
-	const runtime = await createWebAgentRuntime(handler, { argv, cwd: process.cwd() });
-	const address: AddressInfo = await listenOnAvailablePort(runtime, cli.host, cli.port);
-	const url = localUrl(cli.host, address.port);
-	console.log(`Web Agent v${packageJson.version} listening at ${url}`);
-	if (cli.open) openBrowser(url);
+	const port = findAvailablePort(cli.host, cli.port);
+	process.env.HTTP_HOST = cli.host;
+	process.env.HTTP_PORT = String(port);
 
+	const runtime = await createWebAgentRuntime({ argv, cwd: process.cwd() });
+	setWebAgentRuntime(runtime);
 	let closing = false;
 	const shutdown = async () => {
 		if (closing) return;
 		closing = true;
 		await runtime.close();
-		process.exit(0);
+		clearWebAgentRuntime(runtime);
 	};
-	process.once('SIGINT', () => void shutdown());
-	process.once('SIGTERM', () => void shutdown());
+	const stopFromSignal = () => void shutdown().finally(() => process.exit(0));
+	process.once('SIGINT', stopFromSignal);
+	process.once('SIGTERM', stopFromSignal);
+
+	try {
+		// Import adapter-bun's documented runtime entry point after setting its
+		// host/port and the shared broker used by hooks.server.
+		// @ts-expect-error adapter-bun generates this module before the server TypeScript emit.
+		const adapter = (await import('../../index.js')) as { serve(): void };
+		// The generated adapter detects and starts itself in a compiled Bun binary.
+		if (Bun.embeddedFiles.length === 0) adapter.serve();
+		const url = localUrl(cli.host, port);
+		console.log(`Web Agent v${packageJson.version} listening at ${url}`);
+		if (cli.open) openBrowser(url);
+	} catch (error) {
+		await shutdown();
+		throw error;
+	}
 } catch (error) {
 	console.error(error instanceof Error ? error.message : String(error));
 	process.exit(1);

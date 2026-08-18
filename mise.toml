@@ -1,17 +1,17 @@
 [tools]
-node = "26"
+bun = "1.3.14"
 
-[tasks.npm-install]
-run = 'npm install'
+[tasks.bun-install]
+run = 'bun install --frozen-lockfile'
 
 [tasks.pi-install]
 run = 'curl -fsSL https://pi.dev/install.sh | sh'
 
 [tasks.playwright-install]
 run = [
-  'sudo mise exec -- npx playwright install-deps',
-  'npx playwright install'
+  'sudo mise exec -- bunx playwright install-deps',
+  'bunx playwright install'
 ]
 
 [tasks.bootstrap]
-depends = ['npm-install', 'pi-install', 'playwright-install']
+depends = ['bun-install', 'pi-install', 'playwright-install']

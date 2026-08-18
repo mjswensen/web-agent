@@ -1,8 +1,7 @@
-import { access, stat } from 'node:fs/promises';
-import { constants } from 'node:fs';
 import { delimiter, isAbsolute, join, resolve } from 'node:path';
 
 export type PiBinarySource = '--pi' | 'PI_BIN' | 'PATH';
+export type PiBinaryEnvironment = Record<string, string | undefined>;
 
 export interface ResolvedPiBinary {
 	path: string;
@@ -11,7 +10,7 @@ export interface ResolvedPiBinary {
 
 export interface PiBinaryResolutionOptions {
 	piPath?: string;
-	env?: NodeJS.ProcessEnv;
+	env?: PiBinaryEnvironment;
 	cwd?: string;
 }
 
@@ -26,10 +25,10 @@ export class PiBinaryNotFoundError extends Error {
 
 async function isExecutable(filePath: string): Promise<boolean> {
 	try {
-		const file = await stat(filePath);
-		if (!file.isFile()) return false;
-		await access(filePath, process.platform === 'win32' ? constants.F_OK : constants.X_OK);
-		return true;
+		const file = Bun.file(filePath);
+		if (!(await file.exists())) return false;
+		const stats = await file.stat();
+		return stats.isFile() && (process.platform === 'win32' || (stats.mode & 0o111) !== 0);
 	} catch {
 		return false;
 	}
@@ -39,7 +38,7 @@ function hasPathSeparator(candidate: string): boolean {
 	return candidate.includes('/') || candidate.includes('\\');
 }
 
-async function findOnPath(command: string, env: NodeJS.ProcessEnv): Promise<string | undefined> {
+async function findOnPath(command: string, env: PiBinaryEnvironment): Promise<string | undefined> {
 	const pathValue = env.PATH;
 	if (!pathValue) return undefined;
 
@@ -63,7 +62,7 @@ async function findOnPath(command: string, env: NodeJS.ProcessEnv): Promise<stri
 
 async function resolveCandidate(
 	candidate: string,
-	env: NodeJS.ProcessEnv,
+	env: PiBinaryEnvironment,
 	cwd: string
 ): Promise<string | undefined> {
 	if (isAbsolute(candidate) || hasPathSeparator(candidate)) {
@@ -103,7 +102,7 @@ export async function resolvePiBinary(
 	throw new PiBinaryNotFoundError();
 }
 
-/** Useful for error messages and tests without exposing Node's path details. */
+/** Useful for error messages and tests without exposing path implementation details. */
 export function describeBinaryLocation(binary: ResolvedPiBinary): string {
 	return `${binary.path} (resolved via ${binary.source})`;
 }

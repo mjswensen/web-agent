@@ -4,37 +4,37 @@ This document is a compact working context for contributors and coding agents. T
 
 ## What this project is
 
-Web Agent is a standalone npm package and Node.js executable (`web-agent`), not a Pi extension. It provides a local, mobile-responsive SvelteKit UI for one long-lived `pi --mode rpc` child process. Every connected browser tab shares the same Pi process, active session, conversation, queue, and session transitions.
+Web Agent is a standalone Bun package and executable (`web-agent`), not a Pi extension. It provides a local, mobile-responsive SvelteKit UI for one long-lived `pi --mode rpc` child process. Every connected browser tab shares the same Pi process, active session, conversation, queue, and session transitions.
 
 The agent has filesystem and shell access through Pi. The default bind address is loopback (`127.0.0.1`); binding to another interface is an intentional security exposure and must remain documented.
 
 ## Current stack and package shape
 
-- Package: `@mjswensen/web-agent`, version `0.1.1`, with the executable name `web-agent`.
-- Node.js: README requirement is 22.19 or newer.
-- ESM TypeScript project using SvelteKit, Svelte 5 runes, Vite, Tailwind CSS 4, and `@sveltejs/adapter-node`.
-- Runtime dependencies: `@earendil-works/pi-coding-agent` (session listing only) and `ws` (the `/ws` transport).
+- Package: `@mjswensen/web-agent`, version `1.4.0`, with the executable name `web-agent`.
+- Bun: version 1.3.14 is pinned in `mise.toml` and `package.json`; `bun.lock` is the committed dependency lock.
+- ESM TypeScript project using SvelteKit, Svelte 5 runes, Vite, Tailwind CSS 4, and the compile-ready `@eslym/sveltekit-adapter-bun` adapter.
+- Runtime dependency `@earendil-works/pi-coding-agent` is used for session listing only. Production HTTP, WebSocket, subprocess, and stream transport use native Bun APIs.
 - MIT licensed (`LICENSE`).
 - Published files are currently `build`, `README.md`, and `LICENSE`; development/context documents are not included by the package `files` allowlist unless that is changed deliberately.
 
 ## Runtime architecture
 
 ```text
-Browser tab(s) -- WebSocket /ws --> one Node/SvelteKit HTTP server
-                                      |-- SvelteKit request handler
+Browser tab(s) -- WebSocket /ws --> one Bun.serve/SvelteKit server
+                                      |-- adapter-bun request handler
                                       |-- RpcBroker + shared snapshots/events
                                       |-- SDK SessionManager for saved-session listing
                                       `-- one PiProcess
                                             `-- pi --mode rpc [forwarded Pi args]
 ```
 
-`src/server/main.ts` owns the shared-server composition. Production uses the adapter-node generated handler plus `src/server/entry.ts`; development attaches the runtime to Vite's own HTTP server through the `webAgentRuntime` plugin in `vite.config.ts`. The WebSocket server must stay on that same HTTP server; do not add a second Express/Hono/server process.
+`src/server/main.ts` owns the shared Pi/broker composition. Production `src/server/entry.ts` selects the CLI host/port, initializes the runtime, and imports adapter-bun's documented `build/index.js` runtime entry. `src/hooks.server.ts` upgrades only `/ws` on that same native `Bun.serve` instance. Development uses the `webAgentRuntime` plugin and the development-only `src/server/vite-websocket.ts` bridge on Vite's own listener, leaving Vite HMR upgrades alone. Do not add a second application server.
 
 ### Pi process and lifecycle
 
 - `src/server/cli.ts` parses Web Agent options and builds child arguments. `--mode rpc` is always added.
 - `src/server/pi-binary.ts` resolves Pi in strict precedence: `--pi`, `PI_BIN`, then executable `pi` on `PATH`. An explicitly selected but invalid executable is an error and must not silently fall through.
-- `src/server/pi-process.ts` owns the long-lived child, strict LF-delimited JSONL stdin/stdout, stderr diagnostics, and graceful shutdown/force-kill behavior.
+- `src/server/pi-process.ts` owns the long-lived `Bun.spawn` child, strict LF-delimited JSONL stdin/stdout, stderr diagnostics, and graceful shutdown/force-kill behavior.
 - `src/server/pi-lifecycle.ts` combines CLI parsing, binary resolution, child creation, and the SDK session-list provider.
 - `src/server/pi-supervisor.ts` permits explicit restart after a crash; it does not run an automatic restart loop.
 - The Pi child uses `process.cwd()` as its working directory and receives the same optional `--session-dir` used by session listing.
@@ -53,7 +53,7 @@ The intended CLI defaults and forwarding are:
 
 ## RPC and browser protocol
 
-`src/lib/client/protocol.ts` is the shared protocol type/validation source for browser frames. `src/server/websocket.ts` parses and validates one JSON WebSocket frame at a time, owns `/ws` connection lifecycle, and leaves other upgrades (such as Vite HMR) alone.
+`src/lib/client/protocol.ts` is the shared protocol type/validation source for browser frames. `src/server/websocket.ts` parses and validates one JSON WebSocket frame at a time and owns Bun's `/ws` connection lifecycle. The development-only Vite bridge leaves other upgrades (notably HMR) alone.
 
 `src/server/rpc-broker.ts` is transport-independent and owns:
 
@@ -66,7 +66,7 @@ The intended CLI defaults and forwarding are:
 
 Browser frames use `kind` values including `command`, `dialog_response`, and `ping`. Server frames include `response`, `event`, `events` (coalesced events), `snapshot`, `extension_ui_request`, `server_status`, and `pong`. Session-list enumeration is internal and is never forwarded to Pi.
 
-Pi stdout is strict LF JSONL: decode UTF-8 incrementally, split only on `\n`, remove one trailing `\r`, ignore empty records, and JSON-parse each remaining record. Do not replace this with Node `readline`, which has incompatible Unicode line-separator behavior. Commands written to Pi are exactly one `JSON.stringify(command) + "\n"` record.
+Pi stdout is strict LF JSONL: decode UTF-8 incrementally, split only on `\n`, remove one trailing `\r`, ignore empty records, and JSON-parse each remaining record. Do not replace this with `readline`, which has incompatible Unicode line-separator behavior. Commands written to Pi are exactly one `JSON.stringify(command) + "\n"` record, followed by an awaited Bun stdin flush.
 
 `src/server/event-batcher.ts` coalesces stream-heavy updates on a 16 ms timer. Cumulative `tool_execution_update` events replace older updates for the same tool call. Lifecycle/error/session/dialog events flush immediately.
 
@@ -109,12 +109,16 @@ src/
   server/pi-lifecycle.ts          Startup options and process construction
   server/pi-supervisor.ts         Explicit restart lifecycle
   server/rpc-broker.ts            RPC correlation, broadcast, snapshots, session adapter
-  server/websocket.ts             /ws upgrade and connection handling
+  server/websocket.ts             Native Bun /ws upgrade and connection handling
   server/session-list.ts          SDK SessionManager list adapter
   server/git-status.ts            Read-only Git porcelain/diff snapshot provider
   server/event-batcher.ts         Stream event coalescing
-  server/main.ts                  Shared HTTP/runtime factories
-  server/entry.ts                 Production CLI executable
+  hooks.server.ts                adapter-bun `/ws` upgrade and WebSocket delegation
+  server/main.ts                  Shared Pi/broker/runtime composition
+  server/entry.ts                 Bun production CLI and adapter runtime launcher
+  server/port.ts                  Bun-native port fallback selection
+  server/runtime-context.ts       Process-global production runtime handoff
+  server/vite-websocket.ts        Development-only Vite WebSocket bridge
 ```
 
 Tests live beside the implementation as `*.spec.ts` and `*.svelte.spec.ts`; browser E2E tests are `*.e2e.ts` under `src/routes` and demo fixtures.
@@ -122,19 +126,19 @@ Tests live beside the implementation as `*.spec.ts` and `*.svelte.spec.ts`; brow
 ## Verification commands
 
 ```sh
-npm install
-npm run dev                 # Vite UI/runtime on port 5100; requires Pi
-npm run build               # Vite/adapter build plus server TypeScript emit
-npm start                   # Run built production executable
-npm run check               # svelte-check and TypeScript diagnostics
-npm run lint                # Prettier check plus ESLint
-npm run test:unit           # Vitest client/server unit tests
-npm run test:e2e            # Playwright E2E; installs browsers first
-npm run test                # Unit run followed by E2E
-npm run precommit           # build, check, lint, and all tests
+bun install --frozen-lockfile
+bun run dev                 # Vite UI/runtime on port 5100; requires Pi
+bun run build               # Vite/adapter build plus server TypeScript emit
+bun start                   # Run built production executable
+bun run check               # svelte-check and TypeScript diagnostics
+bun run lint                # Prettier check plus ESLint
+bun run test:unit           # Vitest client/server unit tests
+bun run test:e2e            # Playwright E2E; installs browsers first
+bun run test                # Unit run followed by E2E
+bun run precommit           # build, check, lint, and all tests
 ```
 
-The deterministic E2E suite uses a fake in-browser WebSocket/Pi transport and does not require provider credentials. Unit tests mock the Pi stdin/stdout boundary. Running the production executable requires an installed/executable Pi binary unless a test double is supplied.
+The deterministic E2E suite uses a fake in-browser WebSocket/Pi transport and does not require provider credentials. Unit tests use Bun-compatible subprocess and stream fakes at the Pi stdin/stdout boundary. Running the production executable requires an installed/executable Pi binary unless a test double is supplied.
 
 ## Scope boundaries
 

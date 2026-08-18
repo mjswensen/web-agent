@@ -1,6 +1,8 @@
 export const DEFAULT_PORT = 3000;
 export const DEFAULT_HOST = '127.0.0.1';
 
+export type WebAgentEnvironment = Record<string, string | undefined>;
+
 export interface WebAgentCliOptions {
 	/** The requested port. A server may choose a later available port. */
 	port: number;
@@ -71,7 +73,7 @@ function splitEqualsOption(argument: string): [string, string | undefined] {
 /** Parse only Web Agent's deliberately small, documented CLI surface. */
 export function parseCliArgs(
 	argv: readonly string[],
-	env: NodeJS.ProcessEnv = process.env
+	env: WebAgentEnvironment = process.env
 ): WebAgentCliOptions {
 	let portValue = env.PI_WEB_PORT ?? String(DEFAULT_PORT);
 	let host = DEFAULT_HOST;

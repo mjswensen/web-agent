@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import type {
 	BrowserCommand,
 	ClientFrame,
@@ -33,7 +32,7 @@ export interface PiRpcTransport {
 	onRecord(listener: (record: unknown) => void): () => void;
 	onProtocolError(listener: (error: Error) => void): () => void;
 	onExit(
-		listener: (exit: { code: number | null; signal: NodeJS.Signals | null }) => void
+		listener: (exit: { code: number | null; signal: string | number | null }) => void
 	): () => void;
 }
 
@@ -359,7 +358,7 @@ export class RpcBroker {
 	}
 
 	private async forwardCommand(clientId: string, frame: CommandFrame): Promise<void> {
-		const rpcId = `web-agent-${++this.nextRequestNumber}-${randomUUID()}`;
+		const rpcId = `web-agent-${++this.nextRequestNumber}-${crypto.randomUUID()}`;
 		let command: JsonObject;
 		try {
 			command = mapCommandToPi(frame, rpcId);

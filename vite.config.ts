@@ -1,8 +1,8 @@
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig, type Plugin } from 'vitest/config';
 import { playwright } from '@vitest/browser-playwright';
-import { attachWebAgentRuntime } from './src/server/main.js';
-import adapter from '@sveltejs/adapter-node';
+import { createWebAgentRuntime } from './src/server/main.js';
+import { installViteWebSocketServer } from './src/server/vite-websocket.js';
 import { sveltekit } from '@sveltejs/kit/vite';
 
 /** Run the Pi/WebSocket runtime on Vite's own HTTP server during development. */
@@ -12,11 +12,14 @@ function webAgentRuntime(): Plugin {
 		async configureServer(vite) {
 			// Vitest creates a middleware-only Vite server with no HTTP listener.
 			if (!vite.httpServer) return;
-			const runtime = await attachWebAgentRuntime(vite.httpServer, {
+			const runtime = await createWebAgentRuntime({
 				argv: [],
 				cwd: process.cwd()
 			});
-			vite.httpServer.once('close', () => void runtime.close());
+			const webSockets = installViteWebSocketServer(vite.httpServer, runtime.broker);
+			vite.httpServer.once('close', () => {
+				void webSockets.close().finally(() => runtime.close());
+			});
 		}
 	};
 }
@@ -26,20 +29,10 @@ export default defineConfig({
 		host: true,
 		allowedHosts: true
 	},
-	plugins: [
-		webAgentRuntime(),
-		tailwindcss(),
-		sveltekit({
-			compilerOptions: {
-				// Force runes mode for the project, except for libraries. Can be removed in svelte 6.
-				runes: ({ filename }) =>
-					filename.split(/[/\\]/).includes('node_modules') ? undefined : true
-			},
-			adapter: adapter()
-		})
-	],
+	plugins: [webAgentRuntime(), tailwindcss(), sveltekit()],
 	test: {
 		expect: { requireAssertions: true },
+		reporters: ['default', './scripts/bun-exit-reporter.ts'],
 		projects: [
 			{
 				extends: './vite.config.ts',

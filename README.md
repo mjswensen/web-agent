@@ -1,20 +1,22 @@
 # Web Agent
 
-Web Agent is a local, mobile-responsive browser interface for [Pi](https://pi.dev). It is a standalone Node.js package, not a Pi extension. One Web Agent server owns one long-lived `pi --mode rpc` child process and shares its active session with every connected browser tab.
+Web Agent is a local, mobile-responsive browser interface for [Pi](https://pi.dev). It is a standalone Bun package, not a Pi extension. One Web Agent server owns one long-lived `pi --mode rpc` child process and shares its active session with every connected browser tab.
 
 > **Security:** Web Agent controls an agent with local filesystem and shell access. It defaults to loopback, but `--host`/`--bind` can expose it on any listen address. Only bind to a reachable interface when that exposure is intended. The read-only Changes view displays tracked and untracked file contents, which can include newly created credentials.
 
 ## Requirements
 
-- Node.js 22.19 or newer
+- Bun 1.3.14 (the pinned version in `mise.toml`) for package installs and source checkouts
 - A working Pi installation available on `PATH`, or an executable path supplied with `--pi` or `PI_BIN`
+
+The standalone release binaries embed Bun and do not require a separate Bun installation.
 
 ## Install and run
 
 Install the package globally:
 
 ```sh
-npm install --global web-agent
+bun add --global @mjswensen/web-agent
 web-agent
 ```
 
@@ -39,9 +41,9 @@ Standalone releases currently include:
 Or run a checked-out repository:
 
 ```sh
-npm install
-npm run build
-npm start
+bun install --frozen-lockfile
+bun run build
+bun start
 ```
 
 The server prints its final local URL, normally `http://127.0.0.1:3000`. It does **not** open a browser unless requested.
@@ -71,14 +73,14 @@ If no executable Pi binary is found, Web Agent exits with instructions rather th
 
 ## CLI reference
 
-| Option / environment variable           | Description                                                                         |
-| --------------------------------------- | ----------------------------------------------------------------------------------- |
-| `--port <number>`                       | Requested local HTTP port. Overrides `PI_WEB_PORT`. Default: `3000`.                |
-| `PI_WEB_PORT`                           | Requested port when `--port` is omitted.                                            |
-| `--host <address>` / `--bind <address>` | Listen address. Default: `127.0.0.1`. Any address supported by Node.js is accepted. |
-| `--open`                                | Open the selected URL using the operating system browser handler.                   |
-| `--pi <path>`                           | Explicit Pi executable.                                                             |
-| `PI_BIN`                                | Fallback Pi executable when `--pi` is absent.                                       |
+| Option / environment variable           | Description                                                                     |
+| --------------------------------------- | ------------------------------------------------------------------------------- |
+| `--port <number>`                       | Requested local HTTP port. Overrides `PI_WEB_PORT`. Default: `3000`.            |
+| `PI_WEB_PORT`                           | Requested port when `--port` is omitted.                                        |
+| `--host <address>` / `--bind <address>` | Listen address. Default: `127.0.0.1`. Any address supported by Bun is accepted. |
+| `--open`                                | Open the selected URL using the operating system browser handler.               |
+| `--pi <path>`                           | Explicit Pi executable.                                                         |
+| `PI_BIN`                                | Fallback Pi executable when `--pi` is absent.                                   |
 
 These Pi startup options are forwarded to the child, which always receives `--mode rpc`:
 
@@ -109,23 +111,23 @@ If Pi exits, the browser preserves the visible conversation and offers **Restart
 ## Development
 
 ```sh
-npm install
-npm run dev
+bun install --frozen-lockfile
+bun run dev
 ```
 
-`npm run dev` starts the Vite/Svelte development UI and attaches the Pi/WebSocket runtime to Vite's HTTP server. For the production adapter-node runtime, use `npm run build && npm start`.
+`bun run dev` starts the Vite/Svelte development UI and attaches the Pi/WebSocket runtime to Vite's HTTP server. For the production adapter-bun runtime, use `bun run build && bun start`.
 
 Useful checks:
 
 ```sh
-npm run check       # Svelte and TypeScript diagnostics
-npm run lint        # Prettier and ESLint
-npm run test:unit   # Vitest unit tests
-npm run test:e2e    # Playwright browser tests
-npm run precommit   # Build, checks, lint, unit tests, and E2E tests
+bun run check       # Svelte and TypeScript diagnostics
+bun run lint        # Prettier and ESLint
+bun run test:unit   # Vitest unit tests
+bun run test:e2e    # Playwright browser tests
+bun run precommit   # Build, checks, lint, unit tests, and E2E tests
 ```
 
-The E2E suite uses a deterministic in-browser RPC transport and does not require provider credentials. Unit tests mock the Pi stdin/stdout boundary.
+The E2E suite uses a deterministic in-browser RPC transport and does not require provider credentials. Unit tests use explicit Bun-compatible process and stream fakes at the Pi stdin/stdout boundary.
 
 ## Current v1 boundaries
 

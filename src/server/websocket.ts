@@ -1,7 +1,4 @@
-import { randomUUID } from 'node:crypto';
-import type { IncomingMessage } from 'node:http';
-import type { Duplex } from 'node:stream';
-import { WebSocket, WebSocketServer, type RawData } from 'ws';
+import type { WebSocketHandler as AdapterWebSocketHandler } from '@eslym/sveltekit-adapter-bun';
 import { parseClientFrame, type ServerFrame } from '../lib/client/protocol.js';
 import type { RpcBroker } from './rpc-broker.js';
 
@@ -10,70 +7,42 @@ export interface WebSocketHub {
 	clientCount(): number;
 }
 
-function parseMessage(data: RawData): unknown {
-	const text = Array.isArray(data)
-		? Buffer.concat(data).toString('utf8')
-		: data instanceof ArrayBuffer
-			? Buffer.from(data).toString('utf8')
-			: data.toString('utf8');
-	return JSON.parse(text);
+export interface BrowserConnection {
+	receive(text: string): Promise<void>;
+	close(): void;
 }
 
-function send(socket: WebSocket, frame: ServerFrame): void {
-	if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify(frame));
+function sendFrame(send: (text: string) => void, frame: ServerFrame): void {
+	send(JSON.stringify(frame));
 }
 
-function requestPath(request: IncomingMessage): string | undefined {
-	if (!request.url) return undefined;
-	try {
-		return new URL(request.url, 'http://localhost').pathname;
-	} catch {
-		return undefined;
-	}
-}
-
-/** Installs the sole `/ws` upgrade endpoint on the SvelteKit-owned HTTP server. */
-export function installWebSocketServer(
-	server: {
-		on(
-			event: 'upgrade',
-			listener: (request: IncomingMessage, socket: Duplex, head: Buffer) => void
-		): unknown;
-	},
+/** Connects an already-upgraded socket to the transport-independent RPC broker. */
+export function connectBrowserClient(
 	broker: RpcBroker,
-	path = '/ws'
-): WebSocketHub {
-	const webSocketServer = new WebSocketServer({ noServer: true });
-	const sockets = new Set<WebSocket>();
-
-	server.on('upgrade', (request, socket, head) => {
-		// Other listeners own non-application upgrades (notably Vite's HMR
-		// WebSocket in development), so leave them untouched.
-		if (requestPath(request) !== path) return;
-		webSocketServer.handleUpgrade(request, socket, head, (webSocket) => {
-			webSocketServer.emit('connection', webSocket, request);
-		});
+	clientId: string,
+	send: (text: string) => void
+): BrowserConnection {
+	const removeClient = broker.addClient({
+		id: clientId,
+		send: (frame) => sendFrame(send, frame)
 	});
+	let connected = true;
 
-	webSocketServer.on('connection', (socket) => {
-		const clientId = randomUUID();
-		sockets.add(socket);
-		const removeClient = broker.addClient({ id: clientId, send: (frame) => send(socket, frame) });
-
-		socket.on('message', async (data) => {
+	return {
+		async receive(text) {
+			if (!connected) return;
 			let value: unknown;
 			try {
-				value = parseMessage(data);
+				value = JSON.parse(text);
 			} catch {
-				// There is no request ID to correlate for malformed JSON, so it is
-				// deliberately ignored rather than fabricating a Pi status failure.
+				// Malformed JSON has no trustworthy request ID to correlate.
 				return;
 			}
 
 			const parsed = parseClientFrame(value);
 			if (!parsed.ok) {
 				if (parsed.id) {
-					send(socket, {
+					sendFrame(send, {
 						kind: 'response',
 						id: parsed.id,
 						command: parsed.command ?? 'unknown',
@@ -85,21 +54,56 @@ export function installWebSocketServer(
 			}
 
 			await broker.handleClientFrame(clientId, parsed.frame);
-		});
-		socket.once('close', () => {
-			sockets.delete(socket);
+		},
+		close() {
+			if (!connected) return;
+			connected = false;
 			removeClient();
-		});
-		socket.once('error', () => socket.close());
-	});
+		}
+	};
+}
+
+function decodeMessage(message: string | Uint8Array): string {
+	return typeof message === 'string' ? message : new TextDecoder().decode(message);
+}
+
+export interface BunWebSocketHub extends WebSocketHub {
+	readonly handler: AdapterWebSocketHandler;
+}
+
+/** Creates the sole production `/ws` handler used by adapter-bun's Bun.serve instance. */
+export function createBunWebSocketHub(broker: RpcBroker): BunWebSocketHub {
+	const connections = new Map<Bun.ServerWebSocket<AdapterWebSocketHandler>, BrowserConnection>();
+
+	const handler: AdapterWebSocketHandler = {
+		open(socket: Bun.ServerWebSocket<AdapterWebSocketHandler>) {
+			const connection = connectBrowserClient(broker, crypto.randomUUID(), (text) => {
+				try {
+					socket.send(text);
+				} catch {
+					socket.close(1011, 'WebSocket send failed');
+				}
+			});
+			connections.set(socket, connection);
+		},
+		async message(socket: Bun.ServerWebSocket<AdapterWebSocketHandler>, message: string | Buffer) {
+			await connections.get(socket)?.receive(decodeMessage(message));
+		},
+		close(socket: Bun.ServerWebSocket<AdapterWebSocketHandler>) {
+			connections.get(socket)?.close();
+			connections.delete(socket);
+		}
+	};
 
 	return {
-		clientCount: () => sockets.size,
+		handler,
+		clientCount: () => connections.size,
 		close: async () => {
-			for (const socket of sockets) socket.close(1001, 'Server shutting down');
-			await new Promise<void>((resolve, reject) => {
-				webSocketServer.close((error) => (error ? reject(error) : resolve()));
-			});
+			for (const [socket, connection] of connections) {
+				connection.close();
+				socket.close(1001, 'Server shutting down');
+			}
+			connections.clear();
 		}
 	};
 }

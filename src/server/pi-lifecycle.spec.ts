@@ -1,36 +1,39 @@
-import type { ChildProcessWithoutNullStreams } from 'node:child_process';
-import { EventEmitter } from 'node:events';
-import { PassThrough, Writable } from 'node:stream';
 import { describe, expect, it, vi } from 'vitest';
 import { startPiLifecycle } from './pi-lifecycle.js';
-import type { SpawnFunction } from './pi-process.js';
+import type { PiSubprocess, SpawnFunction } from './pi-process.js';
 
-function fakeChild(writes: string[]): ChildProcessWithoutNullStreams {
-	const child = new EventEmitter() as EventEmitter & {
-		stdin: Writable;
-		stdout: PassThrough;
-		stderr: PassThrough;
-		kill: ReturnType<typeof vi.fn>;
+function fakeChild(writes: string[]): PiSubprocess {
+	return {
+		stdin: {
+			write(data) {
+				writes.push(typeof data === 'string' ? data : new TextDecoder().decode(data));
+				return typeof data === 'string' ? data.length : data.byteLength;
+			},
+			flush: vi.fn(async () => 0),
+			end: vi.fn(() => undefined)
+		},
+		stdout: new ReadableStream(),
+		stderr: new ReadableStream(),
+		exited: new Promise<number>(() => undefined),
+		signalCode: null,
+		kill: vi.fn()
 	};
-	child.stdin = new Writable({
-		write(chunk, _encoding, callback) {
-			writes.push(String(chunk));
-			callback();
-		}
-	});
-	child.stdout = new PassThrough();
-	child.stderr = new PassThrough();
-	child.kill = vi.fn(() => true);
-	return child as unknown as ChildProcessWithoutNullStreams;
 }
 
 describe('Pi lifecycle startup', () => {
 	it('starts exactly one RPC child using the launch directory and forwarded flags', async () => {
 		const writes: string[] = [];
-		const spawn = vi.fn(((command, args, options) => {
-			expect(command).toBe('/mock/pi');
+		const spawn = vi.fn(((options) => {
+			expect(options.cmd).toEqual([
+				'/mock/pi',
+				'--mode',
+				'rpc',
+				'--resume',
+				'--model',
+				'test-model'
+			]);
 			expect(options.cwd).toBe('/project');
-			expect(args).toEqual(['--mode', 'rpc', '--resume', '--model', 'test-model']);
+			expect(options).toMatchObject({ stdin: 'pipe', stdout: 'pipe', stderr: 'pipe' });
 			return fakeChild(writes);
 		}) satisfies SpawnFunction);
 		const resolveBinary = vi.fn(async () => ({ path: '/mock/pi', source: '--pi' as const }));

@@ -7,7 +7,7 @@ class FakePi implements PiRpcTransport {
 	private recordListener: ((record: unknown) => void) | undefined;
 	private errorListener: ((error: Error) => void) | undefined;
 	private exitListener:
-		((exit: { code: number | null; signal: NodeJS.Signals | null }) => void) | undefined;
+		((exit: { code: number | null; signal: string | number | null }) => void) | undefined;
 
 	async send(command: unknown): Promise<void> {
 		this.writes.push(command);
@@ -24,7 +24,7 @@ class FakePi implements PiRpcTransport {
 	}
 
 	onExit(
-		listener: (exit: { code: number | null; signal: NodeJS.Signals | null }) => void
+		listener: (exit: { code: number | null; signal: string | number | null }) => void
 	): () => void {
 		this.exitListener = listener;
 		return () => undefined;

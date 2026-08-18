@@ -12,5 +12,5 @@
 		"checkJs": false
 	},
 	"include": ["src/server/**/*.ts", "src/lib/client/protocol.ts"],
-	"exclude": ["src/**/*.spec.ts", "src/**/*.test.ts"]
+	"exclude": ["src/**/*.spec.ts", "src/**/*.test.ts", "src/server/vite-websocket.ts"]
 }

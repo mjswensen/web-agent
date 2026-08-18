@@ -1,9 +1,3 @@
-import {
-	spawn as nodeSpawn,
-	type ChildProcessWithoutNullStreams,
-	type SpawnOptions
-} from 'node:child_process';
-
 export class JsonlParseError extends Error {
 	readonly record: string;
 
@@ -90,31 +84,57 @@ export class StrictJsonlReader<T = unknown> {
 	}
 }
 
+export type ProcessEnvironment = Record<string, string | undefined>;
+
 export interface PiProcessExit {
 	code: number | null;
-	signal: NodeJS.Signals | null;
+	signal: string | number | null;
+}
+
+export interface PiWritable {
+	write(data: string | Uint8Array): number | Promise<number>;
+	flush(): number | Promise<number>;
+	end(): number | void | Promise<number | void>;
+}
+
+export interface PiSubprocess {
+	readonly stdin: PiWritable;
+	readonly stdout: ReadableStream<Uint8Array>;
+	readonly stderr: ReadableStream<Uint8Array>;
+	readonly exited: Promise<number>;
+	readonly signalCode: number | null;
+	kill(signal?: string | number): void;
+}
+
+export interface PiSpawnOptions {
+	cmd: string[];
+	cwd: string;
+	env: ProcessEnvironment;
+	stdin: 'pipe';
+	stdout: 'pipe';
+	stderr: 'pipe';
 }
 
 export interface PiProcessOptions {
 	command: string;
 	args: string[];
 	cwd: string;
-	env?: NodeJS.ProcessEnv;
+	env?: ProcessEnvironment;
 	spawn?: SpawnFunction;
 }
 
-export type SpawnFunction = (
-	command: string,
-	args: readonly string[],
-	options: SpawnOptions
-) => ChildProcessWithoutNullStreams;
+export type SpawnFunction = (options: PiSpawnOptions) => PiSubprocess;
 
 export type PiRecordListener = (record: unknown) => void;
 export type PiErrorListener = (error: Error) => void;
 export type PiStderrListener = (line: string) => void;
 export type PiExitListener = (exit: PiProcessExit) => void;
 
-/** Owns one long-lived Pi RPC subprocess and its strict JSONL transport. */
+function asError(error: unknown): Error {
+	return error instanceof Error ? error : new Error(String(error));
+}
+
+/** Owns one long-lived Pi RPC subprocess and its strict Bun stream transport. */
 export class PiProcess {
 	private readonly recordListeners = new Set<PiRecordListener>();
 	private readonly protocolErrorListeners = new Set<PiErrorListener>();
@@ -127,17 +147,18 @@ export class PiProcess {
 	private readonly exitPromise: Promise<PiProcessExit>;
 	private resolveExit!: (value: PiProcessExit) => void;
 
-	readonly child: ChildProcessWithoutNullStreams;
+	readonly child: PiSubprocess;
 
 	constructor(options: PiProcessOptions) {
 		const spawn: SpawnFunction =
-			options.spawn ??
-			((command, args, spawnOptions) =>
-				nodeSpawn(command, [...args], spawnOptions) as ChildProcessWithoutNullStreams);
-		this.child = spawn(options.command, options.args, {
+			options.spawn ?? ((spawnOptions) => Bun.spawn(spawnOptions) as unknown as PiSubprocess);
+		this.child = spawn({
+			cmd: [options.command, ...options.args],
 			cwd: options.cwd,
 			env: options.env ?? process.env,
-			stdio: 'pipe'
+			stdin: 'pipe',
+			stdout: 'pipe',
+			stderr: 'pipe'
 		});
 
 		this.exitPromise = new Promise<PiProcessExit>((resolve) => {
@@ -151,21 +172,15 @@ export class PiProcess {
 			if (line) this.notify(this.stderrListeners, line);
 		});
 
-		this.child.stdout.on('data', (chunk: Buffer) => this.stdoutReader.push(chunk));
-		this.child.stdout.on('end', () => this.stdoutReader.finish());
-		this.child.stderr.on('data', (chunk: Buffer) => this.stderrReader.push(chunk));
-		this.child.stderr.on('end', () => this.stderrReader.finish());
-		this.child.on('error', (error) => {
-			this.notify(this.protocolErrorListeners, error);
-			// A failed spawn emits `error` and may never emit `exit`; represent it
-			// as an unavailable child so shutdown/recovery code cannot wait forever.
-			this.markExited({ code: null, signal: null });
-		});
-		this.child.once('exit', (code, signal) => this.markExited({ code, signal }));
-		this.child.once('close', () => {
-			this.stdoutReader.finish();
-			this.stderrReader.finish();
-		});
+		this.consume(this.child.stdout, this.stdoutReader);
+		this.consume(this.child.stderr, this.stderrReader);
+		void this.child.exited.then(
+			(code) => this.markExited({ code, signal: this.child.signalCode }),
+			(error) => {
+				this.notify(this.protocolErrorListeners, asError(error));
+				this.markExited({ code: null, signal: this.child.signalCode });
+			}
+		);
 	}
 
 	onRecord(listener: PiRecordListener): () => void {
@@ -185,22 +200,12 @@ export class PiProcess {
 		return this.addListener(this.exitListeners, listener);
 	}
 
-	/** Serialize exactly one JSON command followed by a single LF and await write completion. */
-	send(command: unknown): Promise<void> {
-		if (this.exited || this.child.stdin.destroyed || !this.child.stdin.writable) {
-			return Promise.reject(new Error('Pi RPC process is not accepting commands.'));
-		}
-
-		let record: string;
-		try {
-			record = `${JSON.stringify(command)}\n`;
-		} catch (error) {
-			return Promise.reject(error);
-		}
-
-		return new Promise<void>((resolve, reject) => {
-			this.child.stdin.write(record, (error) => (error ? reject(error) : resolve()));
-		});
+	/** Serialize exactly one JSON command followed by a single LF and await Bun's flush. */
+	async send(command: unknown): Promise<void> {
+		if (this.exited) throw new Error('Pi RPC process is not accepting commands.');
+		const record = `${JSON.stringify(command)}\n`;
+		await this.child.stdin.write(record);
+		await this.child.stdin.flush();
 	}
 
 	waitForExit(): Promise<PiProcessExit> {
@@ -214,14 +219,15 @@ export class PiProcess {
 			throw new RangeError('The Pi shutdown grace period must be a non-negative finite number.');
 		}
 
-		this.child.stdin.end();
+		try {
+			await this.child.stdin.end();
+		} catch (error) {
+			this.notify(this.protocolErrorListeners, asError(error));
+		}
 		try {
 			this.child.kill('SIGTERM');
 		} catch (error) {
-			this.notify(
-				this.protocolErrorListeners,
-				error instanceof Error ? error : new Error(String(error))
-			);
+			this.notify(this.protocolErrorListeners, asError(error));
 		}
 
 		let timer: ReturnType<typeof setTimeout> | undefined;
@@ -235,12 +241,30 @@ export class PiProcess {
 		try {
 			this.child.kill('SIGKILL');
 		} catch (error) {
-			this.notify(
-				this.protocolErrorListeners,
-				error instanceof Error ? error : new Error(String(error))
-			);
+			this.notify(this.protocolErrorListeners, asError(error));
 		}
 		return this.exitPromise;
+	}
+
+	private consume(
+		stream: ReadableStream<Uint8Array>,
+		reader: StrictJsonlReader | StrictLfReader
+	): void {
+		void (async () => {
+			const streamReader = stream.getReader();
+			try {
+				while (true) {
+					const { done, value } = await streamReader.read();
+					if (done) break;
+					reader.push(value);
+				}
+			} catch (error) {
+				this.notify(this.protocolErrorListeners, asError(error));
+			} finally {
+				reader.finish();
+				streamReader.releaseLock();
+			}
+		})();
 	}
 
 	private markExited(exit: PiProcessExit): void {

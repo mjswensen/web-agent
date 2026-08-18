@@ -4,12 +4,12 @@ import {
 	type PiBinaryResolutionOptions,
 	type ResolvedPiBinary
 } from './pi-binary.js';
-import { PiProcess, type PiProcessOptions } from './pi-process.js';
+import { PiProcess, type PiProcessOptions, type ProcessEnvironment } from './pi-process.js';
 import { createSessionListProvider, type SessionListProvider } from './session-list.js';
 
 export interface PiLifecycleOptions {
 	argv: readonly string[];
-	env?: NodeJS.ProcessEnv;
+	env?: ProcessEnvironment;
 	cwd?: string;
 	resolveBinary?: (options: PiBinaryResolutionOptions) => Promise<ResolvedPiBinary>;
 	spawn?: PiProcessOptions['spawn'];

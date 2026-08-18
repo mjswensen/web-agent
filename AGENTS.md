@@ -11,7 +11,7 @@
 
 ### Architecture
 
-- Keep one SvelteKit-owned HTTP server and one `/ws` upgrade endpoint. Do not introduce a second web server or a second Pi child.
+- Keep one adapter-bun-owned `Bun.serve` server and one `/ws` upgrade endpoint. Do not introduce a second application server or a second Pi child.
 - Keep process transport, RPC brokering, WebSocket handling, SDK session listing, and client reduction in separate modules. Do not turn the broker or page into an opaque all-in-one implementation.
 - Pi is integrated through documented JSONL RPC. Use the Pi SDK only for persisted session enumeration (`SessionManager.list`/the session-list adapter), never to manipulate the live child `AgentSession`.
 - Preserve the CLI resolution order: `--pi`, `PI_BIN`, then `pi` on `PATH`; preserve loopback and port-fallback defaults.
@@ -28,7 +28,7 @@
 
 ### Pi JSONL and RPC
 
-- Pi records are LF-delimited only. Decode UTF-8 incrementally, split only on `\n`, strip one trailing `\r`, and do not use Node `readline`.
+- Pi records are LF-delimited only. Decode UTF-8 incrementally, split only on `\n`, strip one trailing `\r`, and do not use `readline`.
 - Write exactly `JSON.stringify(command) + "\n"` to Pi stdin and await write completion.
 - Preserve Pi response IDs and correlate each response to the browser request that initiated it. Broadcast live events/snapshots to all tabs, but send command responses to the originating tab.
 - Keep stream batching near 16 ms. Retain only the newest cumulative partial tool result per `toolCallId`; flush errors, lifecycle/session events, terminal events, and extension-dialog requests immediately.
@@ -56,16 +56,16 @@
 Run the narrowest relevant checks first, then the broader checks when practical:
 
 ```sh
-npm run check
-npm run lint
-npm run test:unit
-npm run test:e2e
-npm run build
+bun run check
+bun run lint
+bun run test:unit
+bun run test:e2e
+bun run build
 ```
 
-`npm run precommit` runs build, check, lint, and tests. `npm run test` runs unit tests and E2E. E2E invokes Playwright browser installation and may require network/system dependencies. The app's runtime tests should use fake Pi/WebSocket transports rather than real credentials.
+`bun run precommit` runs build, check, lint, and tests. `bun run test` runs unit tests and E2E. E2E invokes Playwright browser installation and may require network/system dependencies. The app's runtime tests should use explicit Bun-compatible fake Pi/WebSocket transports rather than real credentials.
 
-For changes affecting startup or the production package, verify both `npm run build`/`npm start` and the CLI behavior where possible. Confirm that the final URL, port fallback, Pi executable errors, shutdown, and `--open` behavior remain clear. For changes affecting shared state, protocol, or session transitions, test reconnect/bootstrap and multiple-tab broadcast semantics.
+For changes affecting startup or the production package, verify both `bun run build`/`bun start` and the CLI behavior where possible. Confirm that the final URL, port fallback, Pi executable errors, shutdown, and `--open` behavior remain clear. For changes affecting shared state, protocol, or session transitions, test reconnect/bootstrap and multiple-tab broadcast semantics.
 
 ## Security and scope checklist
 

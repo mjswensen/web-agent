@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { StrictJsonlReader, StrictLfReader } from './pi-process.js';
+import { PiProcess, StrictJsonlReader, StrictLfReader, type PiSubprocess } from './pi-process.js';
 
 const encoder = new TextEncoder();
 
@@ -57,5 +57,75 @@ describe('strict Pi JSONL reader', () => {
 		reader.finish();
 
 		expect(records).toEqual(['one', '\r', '']);
+	});
+
+	it('awaits Bun stdin flushing after writing exactly one LF-terminated record', async () => {
+		const writes: string[] = [];
+		let releaseFlush!: () => void;
+		const flushed = new Promise<void>((resolve) => (releaseFlush = resolve));
+		const child: PiSubprocess = {
+			stdin: {
+				write(data) {
+					writes.push(String(data));
+					return String(data).length;
+				},
+				async flush() {
+					await flushed;
+					return 0;
+				},
+				end: () => undefined
+			},
+			stdout: new ReadableStream(),
+			stderr: new ReadableStream(),
+			exited: new Promise<number>(() => undefined),
+			signalCode: null,
+			kill: () => undefined
+		};
+		const process = new PiProcess({
+			command: '/mock/pi',
+			args: [],
+			cwd: '/project',
+			spawn: () => child
+		});
+		let completed = false;
+		const sending = process.send({ type: 'get_state' }).then(() => (completed = true));
+
+		await Promise.resolve();
+		expect(writes).toEqual(['{"type":"get_state"}\n']);
+		expect(completed).toBe(false);
+		releaseFlush();
+		await sending;
+		expect(completed).toBe(true);
+	});
+
+	it('force-kills a Pi child that does not exit during the graceful period', async () => {
+		let resolveExit!: (code: number) => void;
+		const signals: Array<string | number | undefined> = [];
+		let signalCode: number | null = null;
+		const child: PiSubprocess = {
+			stdin: { write: () => 0, flush: () => 0, end: () => undefined },
+			stdout: new ReadableStream(),
+			stderr: new ReadableStream(),
+			exited: new Promise<number>((resolve) => (resolveExit = resolve)),
+			get signalCode() {
+				return signalCode;
+			},
+			kill(signal) {
+				signals.push(signal);
+				if (signal === 'SIGKILL') {
+					signalCode = 9;
+					resolveExit(137);
+				}
+			}
+		};
+		const process = new PiProcess({
+			command: '/mock/pi',
+			args: [],
+			cwd: '/project',
+			spawn: () => child
+		});
+
+		await expect(process.stop(0)).resolves.toEqual({ code: 137, signal: 9 });
+		expect(signals).toEqual(['SIGTERM', 'SIGKILL']);
 	});
 });
