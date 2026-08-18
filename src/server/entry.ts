@@ -47,17 +47,6 @@ try {
 	const port = findAvailablePort(cli.host, cli.port);
 
 	const runtime = await createWebAgentRuntime({ argv, cwd: process.cwd() });
-	let closing = false;
-	const shutdown = async () => {
-		if (closing) return;
-		closing = true;
-		server.stop(true);
-		await runtime.close();
-	};
-	const stopFromSignal = () => void shutdown().finally(() => process.exit(0));
-	process.once('SIGINT', stopFromSignal);
-	process.once('SIGTERM', stopFromSignal);
-
 	const clientDir = resolveClientDir();
 
 	const server = Bun.serve({
@@ -75,9 +64,12 @@ try {
 				return undefined as unknown as Response;
 			}
 
-			// Serve static client assets
-			const filePath =
-				url.pathname === '/' ? join(clientDir, 'index.html') : join(clientDir, url.pathname);
+			// Serve static client assets with path traversal protection
+			const resolved = join(clientDir, decodeURIComponent(url.pathname));
+			if (!resolved.startsWith(clientDir + '/') && resolved !== clientDir) {
+				return new Response('Forbidden', { status: 403 });
+			}
+			const filePath = url.pathname === '/' ? join(clientDir, 'index.html') : resolved;
 			const file = Bun.file(filePath);
 			if (await file.exists()) {
 				return new Response(file);
@@ -88,6 +80,17 @@ try {
 		},
 		websocket: runtime.webSockets.handler
 	});
+
+	let closing = false;
+	const shutdown = async () => {
+		if (closing) return;
+		closing = true;
+		server.stop(true);
+		await runtime.close();
+	};
+	const stopFromSignal = () => void shutdown().finally(() => process.exit(0));
+	process.once('SIGINT', stopFromSignal);
+	process.once('SIGTERM', stopFromSignal);
 
 	const url = localUrl(cli.host, server.port as number);
 	console.log(`Web Agent v${packageJson.version} listening at ${url}`);
