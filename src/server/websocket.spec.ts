@@ -1,4 +1,3 @@
-import type { WebSocketHandler as AdapterWebSocketHandler } from '@eslym/sveltekit-adapter-bun';
 import { describe, expect, it, vi } from 'vitest';
 import { RpcBroker, type PiRpcTransport } from './rpc-broker.js';
 import { createBunWebSocketHub, type BunWebSocketHub } from './websocket.js';
@@ -67,21 +66,17 @@ describe('/ws Bun upgrade endpoint', () => {
 		const pi = new FakePi();
 		const broker = new RpcBroker(pi);
 		const webSockets: BunWebSocketHub = createBunWebSocketHub(broker);
-		const server = Bun.serve<AdapterWebSocketHandler>({
+		const server = Bun.serve({
 			hostname: '127.0.0.1',
 			port: 0,
 			fetch(request, bunServer) {
 				if (new URL(request.url).pathname === '/ws') {
-					const upgraded = bunServer.upgrade(request, { data: webSockets.handler });
+					const upgraded = bunServer.upgrade(request, { data: undefined });
 					return upgraded ? undefined : new Response('Upgrade failed', { status: 400 });
 				}
 				return new Response('ok');
 			},
-			websocket: {
-				open: (socket) => socket.data.open?.(socket),
-				message: (socket, message) => socket.data.message(socket, message),
-				close: (socket, code, reason) => socket.data.close?.(socket, code, reason)
-			}
+			websocket: webSockets.handler
 		});
 		server.unref();
 		const httpResponse = await fetch(`http://127.0.0.1:${server.port}/`);

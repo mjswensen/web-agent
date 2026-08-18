@@ -1,4 +1,4 @@
-import type { WebSocketHandler as AdapterWebSocketHandler } from '@eslym/sveltekit-adapter-bun';
+import type { ServerWebSocket, WebSocketHandler } from 'bun';
 import { parseClientFrame, type ServerFrame } from '../lib/client/protocol.js';
 import type { RpcBroker } from './rpc-broker.js';
 
@@ -68,15 +68,15 @@ function decodeMessage(message: string | Uint8Array): string {
 }
 
 export interface BunWebSocketHub extends WebSocketHub {
-	readonly handler: AdapterWebSocketHandler;
+	readonly handler: WebSocketHandler<unknown>;
 }
 
-/** Creates the sole production `/ws` handler used by adapter-bun's Bun.serve instance. */
+/** Creates the sole production `/ws` handler used by Bun.serve. */
 export function createBunWebSocketHub(broker: RpcBroker): BunWebSocketHub {
-	const connections = new Map<Bun.ServerWebSocket<AdapterWebSocketHandler>, BrowserConnection>();
+	const connections = new Map<ServerWebSocket<unknown>, BrowserConnection>();
 
-	const handler: AdapterWebSocketHandler = {
-		open(socket: Bun.ServerWebSocket<AdapterWebSocketHandler>) {
+	const handler: WebSocketHandler<unknown> = {
+		open(socket: ServerWebSocket<unknown>) {
 			const connection = connectBrowserClient(broker, crypto.randomUUID(), (text) => {
 				try {
 					socket.send(text);
@@ -86,10 +86,10 @@ export function createBunWebSocketHub(broker: RpcBroker): BunWebSocketHub {
 			});
 			connections.set(socket, connection);
 		},
-		async message(socket: Bun.ServerWebSocket<AdapterWebSocketHandler>, message: string | Buffer) {
+		async message(socket: ServerWebSocket<unknown>, message: string | Buffer) {
 			await connections.get(socket)?.receive(decodeMessage(message));
 		},
-		close(socket: Bun.ServerWebSocket<AdapterWebSocketHandler>) {
+		close(socket: ServerWebSocket<unknown>) {
 			connections.get(socket)?.close();
 			connections.delete(socket);
 		}

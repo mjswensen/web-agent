@@ -12,7 +12,7 @@ The agent has filesystem and shell access through Pi. The default bind address i
 
 - Package: `@mjswensen/web-agent`, version `1.4.0`, with the executable name `web-agent`.
 - Bun: version 1.3.14 is pinned in `mise.toml` and `package.json`; `bun.lock` is the committed dependency lock.
-- ESM TypeScript project using SvelteKit, Svelte 5 runes, Vite, Tailwind CSS 4, and the compile-ready `@eslym/sveltekit-adapter-bun` adapter.
+- ESM TypeScript project using vanilla Bun for the server, Svelte 5 runes for the client (compiled via Vite + `@sveltejs/vite-plugin-svelte`), and Tailwind CSS 4.
 - Runtime dependency `@earendil-works/pi-coding-agent` is used for session listing only. Production HTTP, WebSocket, subprocess, and stream transport use native Bun APIs.
 - MIT licensed (`LICENSE`).
 - Published files are currently `build`, `README.md`, and `LICENSE`; development/context documents are not included by the package `files` allowlist unless that is changed deliberately.
@@ -20,15 +20,15 @@ The agent has filesystem and shell access through Pi. The default bind address i
 ## Runtime architecture
 
 ```text
-Browser tab(s) -- WebSocket /ws --> one Bun.serve/SvelteKit server
-                                      |-- adapter-bun request handler
+Browser tab(s) -- WebSocket /ws --> one Bun.serve server (src/server/entry.ts)
+                                      |-- static file serving (build/client/)
                                       |-- RpcBroker + shared snapshots/events
                                       |-- SDK SessionManager for saved-session listing
                                       `-- one PiProcess
                                             `-- pi --mode rpc [forwarded Pi args]
 ```
 
-`src/server/main.ts` owns the shared Pi/broker composition. Production `src/server/entry.ts` selects the CLI host/port, initializes the runtime, and imports adapter-bun's documented `build/index.js` runtime entry. `src/hooks.server.ts` upgrades only `/ws` on that same native `Bun.serve` instance. Development uses the `webAgentRuntime` plugin and tunnels broker frames through Vite's existing HMR custom-event channel, avoiding a competing upgrade listener while preserving HMR. Do not add a second application server.
+`src/server/main.ts` owns the shared Pi/broker composition. `src/server/entry.ts` directly calls `Bun.serve()` with a fetch handler for static assets and WebSocket upgrades on `/ws`. Development uses `bun --watch src/server/entry.ts` which restarts on source changes; the client must be pre-built via `vite build`. Do not add a second application server.
 
 ### Pi process and lifecycle
 
@@ -53,7 +53,7 @@ The intended CLI defaults and forwarding are:
 
 ## RPC and browser protocol
 
-`src/lib/client/protocol.ts` is the shared protocol type/validation source for browser frames. `src/server/websocket.ts` parses and validates one JSON WebSocket frame at a time and owns Bun's `/ws` connection lifecycle. The development-only Vite bridge reuses HMR custom events instead of installing another upgrade listener.
+`src/lib/client/protocol.ts` is the shared protocol type/validation source for browser frames. `src/server/websocket.ts` parses and validates one JSON WebSocket frame at a time and owns Bun's `/ws` connection lifecycle.
 
 `src/server/rpc-broker.ts` is transport-independent and owns:
 
@@ -94,9 +94,9 @@ Use Svelte 5 conventions already established in the repository: `$state`, `$deri
 
 ```text
 src/
-  routes/+page.svelte             Main route; renders AppShell
-  routes/+layout.svelte           Imports global CSS and creates AppState
-  routes/layout.css               Tailwind imports, plugins, global typography/layout
+  client/App.svelte               Root Svelte component; creates AppState and renders AppShell
+  client/main.ts                  Client entry point; mounts App into the DOM
+  client/app.css                  Tailwind imports, plugins, global typography/layout
   lib/client/protocol.ts          Shared JSON/WebSocket types and frame validation
   lib/client/ws-client.ts         Browser socket, bootstrap, reconnect, request promises
   lib/state/app-state.svelte.ts  Reactive client state and frame application
@@ -113,24 +113,23 @@ src/
   server/session-list.ts          SDK SessionManager list adapter
   server/git-status.ts            Read-only Git porcelain/diff snapshot provider
   server/event-batcher.ts         Stream event coalescing
-  hooks.server.ts                adapter-bun `/ws` upgrade and WebSocket delegation
   server/main.ts                  Shared Pi/broker/runtime composition
-  server/entry.ts                 Bun production CLI and adapter runtime launcher
+  server/entry.ts                 Bun.serve server: CLI, static files, /ws upgrade
   server/port.ts                  Bun-native port fallback selection
-  server/runtime-context.ts       Process-global production runtime handoff
-  server/vite-websocket.ts        Development-only Vite HMR channel bridge
+index.html                        Vite client entry HTML
 ```
 
-Tests live beside the implementation as `*.spec.ts` and `*.svelte.spec.ts`; browser E2E tests are `*.e2e.ts` under `src/routes` and demo fixtures.
+Tests live beside the implementation as `*.spec.ts` and `*.svelte.spec.ts`; browser E2E tests are `*.e2e.ts` under `tests/`.
 
 ## Verification commands
 
 ```sh
 bun install --frozen-lockfile
-bun run dev                 # Vite UI/runtime on port 5100; requires Pi
-bun run build               # Vite/adapter build plus server TypeScript emit
+bun run dev                 # bun --watch src/server/entry.ts; requires Pi and pre-built client
+bun run dev:client          # Vite dev server for client-only iteration with HMR (port 5100)
+bun run build               # Vite client build plus server TypeScript emit
 bun start                   # Run built production executable
-bun run check               # svelte-check and TypeScript diagnostics
+bun run check               # svelte-check TypeScript diagnostics
 bun run lint                # Prettier check plus ESLint
 bun run test:unit           # Vitest client/server unit tests
 bun run test:e2e            # Playwright E2E; installs browsers first

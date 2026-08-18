@@ -1,9 +1,10 @@
 #!/usr/bin/env bun
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import packageJson from '../../package.json' with { type: 'json' };
 import { CLI_HELP, parseCliArgs } from './cli.js';
 import { createWebAgentRuntime } from './main.js';
 import { findAvailablePort } from './port.js';
-import { clearWebAgentRuntime, setWebAgentRuntime } from './runtime-context.js';
 
 function localUrl(host: string, port: number): string {
 	return `http://${host.includes(':') ? `[${host}]` : host}:${port}`;
@@ -30,40 +31,67 @@ if (process.argv.slice(2).some((argument) => argument === '--help' || argument =
 	process.exit(0);
 }
 
+/** Resolve the directory containing pre-built client assets. */
+function resolveClientDir(): string {
+	const scriptDir = import.meta.dirname ?? __dirname;
+	// Production: build/server/server/entry.js → ../../client → build/client/
+	const prodCandidate = join(scriptDir, '..', '..', 'client');
+	if (existsSync(join(prodCandidate, 'index.html'))) return prodCandidate;
+	// Dev (bun src/server/entry.ts): src/server → ../../build/client
+	return join(scriptDir, '..', '..', 'build', 'client');
+}
+
 try {
 	const argv = process.argv.slice(2);
 	const cli = parseCliArgs(argv);
 	const port = findAvailablePort(cli.host, cli.port);
-	process.env.HTTP_HOST = cli.host;
-	process.env.HTTP_PORT = String(port);
 
 	const runtime = await createWebAgentRuntime({ argv, cwd: process.cwd() });
-	setWebAgentRuntime(runtime);
 	let closing = false;
 	const shutdown = async () => {
 		if (closing) return;
 		closing = true;
+		server.stop(true);
 		await runtime.close();
-		clearWebAgentRuntime(runtime);
 	};
 	const stopFromSignal = () => void shutdown().finally(() => process.exit(0));
 	process.once('SIGINT', stopFromSignal);
 	process.once('SIGTERM', stopFromSignal);
 
-	try {
-		// Import adapter-bun's documented runtime entry point after setting its
-		// host/port and the shared broker used by hooks.server.
-		// @ts-expect-error adapter-bun generates this module before the server TypeScript emit.
-		const adapter = (await import('../../index.js')) as { serve(): void };
-		// The generated adapter detects and starts itself in a compiled Bun binary.
-		if (Bun.embeddedFiles.length === 0) adapter.serve();
-		const url = localUrl(cli.host, port);
-		console.log(`Web Agent v${packageJson.version} listening at ${url}`);
-		if (cli.open) openBrowser(url);
-	} catch (error) {
-		await shutdown();
-		throw error;
-	}
+	const clientDir = resolveClientDir();
+
+	const server = Bun.serve({
+		hostname: cli.host,
+		port,
+		async fetch(request, server) {
+			const url = new URL(request.url);
+
+			// WebSocket upgrade
+			if (url.pathname === '/ws') {
+				const upgraded = server.upgrade(request, { data: undefined });
+				if (!upgraded) {
+					return new Response('WebSocket upgrade failed.', { status: 400 });
+				}
+				return undefined as unknown as Response;
+			}
+
+			// Serve static client assets
+			const filePath =
+				url.pathname === '/' ? join(clientDir, 'index.html') : join(clientDir, url.pathname);
+			const file = Bun.file(filePath);
+			if (await file.exists()) {
+				return new Response(file);
+			}
+
+			// SPA fallback: serve index.html for unmatched routes
+			return new Response(Bun.file(join(clientDir, 'index.html')));
+		},
+		websocket: runtime.webSockets.handler
+	});
+
+	const url = localUrl(cli.host, server.port as number);
+	console.log(`Web Agent v${packageJson.version} listening at ${url}`);
+	if (cli.open) openBrowser(url);
 } catch (error) {
 	console.error(error instanceof Error ? error.message : String(error));
 	process.exit(1);
