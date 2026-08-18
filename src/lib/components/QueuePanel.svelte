@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { AppState } from '$lib/state/app-state.svelte';
+	import type { AppState } from '../state/app-state.svelte';
 
 	let { app }: { app: AppState } = $props();
 	let count = $derived(app.queue.steering.length + app.queue.followUp.length);

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import type { AppState } from '$lib/state/app-state.svelte';
+	import type { AppState } from '../state/app-state.svelte';
 	import Button from './core/Button.svelte';
 	import DialogHeader from './core/DialogHeader.svelte';
 	import DialogShell from './core/DialogShell.svelte';

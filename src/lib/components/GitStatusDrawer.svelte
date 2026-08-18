@@ -1,6 +1,6 @@
 <script lang="ts">
-	import type { WebAgentWebSocketClient } from '$lib/client/ws-client';
-	import type { AppState, GitFileStatus } from '$lib/state/app-state.svelte';
+	import type { WebAgentWebSocketClient } from '../client/ws-client';
+	import type { AppState, GitFileStatus } from '../state/app-state.svelte';
 	import DiffView from './DiffView.svelte';
 	import Button from './core/Button.svelte';
 	import DialogHeader from './core/DialogHeader.svelte';

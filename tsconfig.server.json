@@ -6,6 +6,7 @@
 		"rootDir": "./src",
 		"outDir": "./build/server-runtime",
 		"noEmit": false,
+		"verbatimModuleSyntax": false,
 		"declaration": false,
 		"sourceMap": false,
 		"allowJs": false,

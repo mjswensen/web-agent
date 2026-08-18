@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { ExtensionWidget } from '$lib/state/app-state.svelte';
+	import type { ExtensionWidget } from '../state/app-state.svelte';
 
 	let { widgets }: { widgets: ExtensionWidget[] } = $props();
 </script>

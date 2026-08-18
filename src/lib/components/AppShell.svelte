@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { WebAgentWebSocketClient } from '$lib/client/ws-client';
-	import { getAppState } from '$lib/state/app-context.svelte';
+	import { WebAgentWebSocketClient } from '../client/ws-client';
+	import { getAppState } from '../state/app-context.svelte';
 	import CommandPalette from './CommandPalette.svelte';
 	import CompactDialog from './CompactDialog.svelte';
 	import Conversation from './Conversation.svelte';

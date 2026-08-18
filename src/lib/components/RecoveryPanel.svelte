@@ -1,6 +1,6 @@
 <script lang="ts">
-	import type { WebAgentWebSocketClient } from '$lib/client/ws-client';
-	import type { AppState } from '$lib/state/app-state.svelte';
+	import type { WebAgentWebSocketClient } from '../client/ws-client';
+	import type { AppState } from '../state/app-state.svelte';
 	import Button from './core/Button.svelte';
 
 	let { app, client }: { app: AppState; client: WebAgentWebSocketClient | undefined } = $props();

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import DiffView from './DiffView.svelte';
-	import type { ToolExecution } from '$lib/state/event-reducer';
+	import type { ToolExecution } from '../state/event-reducer';
 
 	let { tool }: { tool: ToolExecution } = $props();
 

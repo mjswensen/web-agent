@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { renderMarkdown } from '$lib/format/markdown';
+	import { renderMarkdown } from '../format/markdown';
 
 	let { source, compact = false }: { source: string; compact?: boolean } = $props();
 

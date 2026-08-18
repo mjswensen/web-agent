@@ -1,6 +1,6 @@
 <script lang="ts">
-	import type { WebAgentWebSocketClient } from '$lib/client/ws-client';
-	import type { AppState, ExtensionDialog } from '$lib/state/app-state.svelte';
+	import type { WebAgentWebSocketClient } from '../client/ws-client';
+	import type { AppState, ExtensionDialog } from '../state/app-state.svelte';
 	import Button from './core/Button.svelte';
 	import DialogShell from './core/DialogShell.svelte';
 	import TextField from './core/TextField.svelte';

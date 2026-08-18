@@ -2,7 +2,7 @@
 	import { onMount, tick } from 'svelte';
 	import MessageCard from './MessageCard.svelte';
 	import ToolCard from './ToolCard.svelte';
-	import type { AppState } from '$lib/state/app-state.svelte';
+	import type { AppState } from '../state/app-state.svelte';
 	import { isConversationAtBottom, scrollConversationToBottom } from './conversation-scroll.js';
 	let { state: app }: { state: AppState } = $props();
 	let scroller: HTMLElement;

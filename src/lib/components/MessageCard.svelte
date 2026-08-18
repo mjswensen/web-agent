@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { ConversationMessage, ToolExecution } from '$lib/state/event-reducer';
+	import type { ConversationMessage, ToolExecution } from '../state/event-reducer';
 	import Markdown from './Markdown.svelte';
 	import ThinkingBlock from './ThinkingBlock.svelte';
 	import ToolCard from './ToolCard.svelte';

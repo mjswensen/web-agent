@@ -1,6 +1,6 @@
 <script lang="ts">
-	import type { WebAgentWebSocketClient } from '$lib/client/ws-client';
-	import type { AppState } from '$lib/state/app-state.svelte';
+	import type { WebAgentWebSocketClient } from '../client/ws-client';
+	import type { AppState } from '../state/app-state.svelte';
 	import SessionTreeNode from './SessionTreeNode.svelte';
 
 	let {
