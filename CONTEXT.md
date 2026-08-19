@@ -4,7 +4,7 @@ This document is a compact working context for contributors and coding agents. T
 
 ## What this project is
 
-Web Agent is a standalone Bun package and executable (`web-agent`), not a Pi extension. It provides a local, mobile-responsive SvelteKit UI for one long-lived `pi --mode rpc` child process. Every connected browser tab shares the same Pi process, active session, conversation, queue, and session transitions.
+Web Agent is a standalone Bun package and executable (`web-agent`), not a Pi extension. It provides a local, mobile-responsive React UI for one long-lived `pi --mode rpc` child process. Every connected browser tab shares the same Pi process, active session, conversation, queue, and session transitions.
 
 The agent has filesystem and shell access through Pi. The default bind address is loopback (`127.0.0.1`); binding to another interface is an intentional security exposure and must remain documented.
 
@@ -12,7 +12,7 @@ The agent has filesystem and shell access through Pi. The default bind address i
 
 - Package: `@mjswensen/web-agent`, version `1.4.0`, with the executable name `web-agent`.
 - Bun: version 1.3.14 is pinned in `mise.toml` and `package.json`; `bun.lock` is the committed dependency lock.
-- ESM TypeScript project using vanilla Bun for the server, Svelte 5 runes for the client (compiled via Vite + `@sveltejs/vite-plugin-svelte`), and Tailwind CSS 4.
+- ESM TypeScript project using vanilla Bun for the server, React for the client (bundled via Bun.build), and Tailwind CSS 4.
 - Runtime dependency `@earendil-works/pi-coding-agent` is used for session listing only. Production HTTP, WebSocket, subprocess, and stream transport use native Bun APIs.
 - MIT licensed (`LICENSE`).
 - Published files are currently `build`, `README.md`, and `LICENSE`; development/context documents are not included by the package `files` allowlist unless that is changed deliberately.
@@ -28,7 +28,7 @@ Browser tab(s) -- WebSocket /ws --> one Bun.serve server (src/server/entry.ts)
                                             `-- pi --mode rpc [forwarded Pi args]
 ```
 
-`src/server/main.ts` owns the shared Pi/broker composition. `src/server/entry.ts` directly calls `Bun.serve()` with a fetch handler for static assets and WebSocket upgrades on `/ws`. Development uses `bun --watch src/server/entry.ts` which restarts on source changes; the client must be pre-built via `vite build`. Do not add a second application server.
+`src/server/main.ts` owns the shared Pi/broker composition. `src/server/entry.ts` directly calls `Bun.serve()` with a fetch handler for static assets and WebSocket upgrades on `/ws`. Development uses `bun --watch src/server/entry.ts` which restarts on source changes; the client must be pre-built via `bun scripts/build-client.ts`. Do not add a second application server.
 
 ### Pi process and lifecycle
 
@@ -72,11 +72,11 @@ Pi stdout is strict LF JSONL: decode UTF-8 incrementally, split only on `\n`, re
 
 ## Client state and UI
 
-The root layout creates one `AppState` per request/browser app and provides it through the typed Svelte context in `src/lib/state/app-context.svelte.ts`. Do not introduce a mutable module-level state singleton. `AppState` in `app-state.svelte.ts` contains connection, snapshots, conversation, queue, extension UI, compaction, Pi availability, session transition, editor, and layout state.
+The root layout creates one `AppState` per browser app and provides it through React context in `src/lib/state/app-context.ts`. Do not introduce a mutable module-level state singleton. `AppState` in `app-state.ts` contains connection, snapshots, conversation, queue, extension UI, compaction, Pi availability, session transition, editor, and layout state.
 
 `src/lib/client/ws-client.ts` starts the browser-only socket in `onMount`, performs bootstrap requests (`get_state`, `get_messages`, `get_commands`, `get_session_stats`, `get_session_list`), reconnects with bounded exponential backoff/jitter, and refreshes state after terminal/session events.
 
-The main composition is `src/lib/components/AppShell.svelte`:
+The main composition is `src/lib/components/AppShell.tsx`:
 
 - header/project/session/actions;
 - `Conversation` with structured message cards and tool cards;
@@ -88,18 +88,18 @@ The main composition is `src/lib/components/AppShell.svelte`:
 
 Conversation reduction is pure code in `src/lib/state/event-reducer.ts`. It hydrates durable history, keeps thinking separate from visible assistant text, upserts streaming assistant messages and tool cards by stable IDs, and preserves edit diffs. Footer formatting is pure code in `src/lib/state/footer.ts`; absent Pi metrics display as `—`, not fabricated zeroes.
 
-Use Svelte 5 conventions already established in the repository: `$state`, `$derived`, `$props`, `onclick`, and snippets. New components should not use legacy `export let`, `on:...`, or slot APIs. Keep the UI Tailwind-only with the default palette and the system monospace stack; Pi theme JSON is intentionally out of scope.
+Use React functional components with hooks (`useState`, `useEffect`, `useContext`, `useSyncExternalStore`). Keep the UI Tailwind-only with the default palette and the system monospace stack; Pi theme JSON is intentionally out of scope.
 
 ## Source map
 
 ```text
 src/
-  client/App.svelte               Root Svelte component; creates AppState and renders AppShell
+  client/App.tsx               Root React component; creates AppState and renders AppShell
   client/main.ts                  Client entry point; mounts App into the DOM
   client/app.css                  Tailwind imports, plugins, global typography/layout
   lib/client/protocol.ts          Shared JSON/WebSocket types and frame validation
   lib/client/ws-client.ts         Browser socket, bootstrap, reconnect, request promises
-  lib/state/app-state.svelte.ts  Reactive client state and frame application
+  lib/state/app-state.ts  Reactive client state and frame application
   lib/state/event-reducer.ts     Pure conversation/event reduction
   lib/state/footer.ts             Pure footer/stat derivation
   lib/components/                UI shell, cards, editor, drawers, dialogs, core controls
@@ -116,22 +116,22 @@ src/
   server/main.ts                  Shared Pi/broker/runtime composition
   server/entry.ts                 Bun.serve server: CLI, static files, /ws upgrade
   server/port.ts                  Bun-native port fallback selection
-index.html                        Vite client entry HTML
+scripts/build-client.ts          Bun-based client bundler
 ```
 
-Tests live beside the implementation as `*.spec.ts` and `*.svelte.spec.ts`; browser E2E tests are `*.e2e.ts` under `tests/`.
+Tests live beside the implementation as `*.spec.ts`; browser E2E tests are `*.e2e.ts` under `tests/`.
 
 ## Verification commands
 
 ```sh
 bun install --frozen-lockfile
 bun run dev                 # bun --watch src/server/entry.ts; requires Pi and pre-built client
-bun run dev:client          # Vite dev server for client-only iteration with HMR (port 5100)
-bun run build               # Vite client build plus server TypeScript emit
+# (removed - single dev process)
+bun run build               # Bun client build plus server TypeScript emit
 bun start                   # Run built production executable
-bun run check               # svelte-check TypeScript diagnostics
+bun run check               # tsc --noEmit TypeScript diagnostics
 bun run lint                # Prettier check plus ESLint
-bun run test:unit           # Vitest client/server unit tests
+bun run test:unit           # Vitest server unit tests
 bun run test:e2e            # Playwright E2E; installs browsers first
 bun run test                # Unit run followed by E2E
 bun run precommit           # build, check, lint, and all tests
