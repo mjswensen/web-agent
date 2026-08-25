@@ -1,6 +1,6 @@
 {
 	"name": "web-agent",
-	"image": "ghcr.io/mjswensen/devcontainer:latest",
+	"image": "ghcr.io/mjswensen/devcontainer:sha-82adcff",
 	"remoteUser": "mjs",
 	"postCreateCommand": "mise install && mise bootstrap",
 	"forwardPorts": [5100]
