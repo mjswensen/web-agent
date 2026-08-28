@@ -16,7 +16,7 @@
 		"LICENSE"
 	],
 	"scripts": {
-		"dev": "bun --watch src/server/entry.ts",
+		"dev": "bun --watch src/server/entry.ts --port 5100",
 		"build": "bun scripts/build-client.ts && bun --bun tsc -p tsconfig.server.json && bun run scripts/prepare-package.ts",
 		"prepack": "bun run precommit && bun run build",
 		"start": "bun build/server/server/entry.js",
