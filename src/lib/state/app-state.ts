@@ -347,9 +347,28 @@ export class AppState {
 		return this.connection.status === 'connected' && this.pi.available && !this.sessionTransition;
 	}
 
-	get sessionName(): string | undefined {
+	get activeSession(): JsonObject | undefined {
 		const state = this.sessionState;
-		return typeof state?.sessionName === 'string' ? state.sessionName : undefined;
+		return this.sessionList.find(
+			(session) =>
+				(typeof state?.sessionFile === 'string' && session.path === state.sessionFile) ||
+				(typeof state?.sessionId === 'string' && session.id === state.sessionId)
+		);
+	}
+
+	get sessionName(): string | undefined {
+		const stateName = this.sessionState?.sessionName;
+		if (typeof stateName === 'string' && stateName) return stateName;
+		const persistedName = this.activeSession?.name;
+		return typeof persistedName === 'string' && persistedName ? persistedName : undefined;
+	}
+
+	get sessionTitle(): string | undefined {
+		if (this.sessionName) return this.sessionName;
+		const firstMessage = this.activeSession?.firstMessage;
+		if (typeof firstMessage === 'string' && firstMessage) return firstMessage;
+		const id = this.activeSession?.id;
+		return typeof id === 'string' && id ? id : undefined;
 	}
 
 	get footer(): FooterValues {

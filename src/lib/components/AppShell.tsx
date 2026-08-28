@@ -27,6 +27,7 @@ export function AppShell() {
 	const cwd = typeof app.sessionState?.cwd === 'string' ? app.sessionState.cwd : '';
 	const projectName =
 		typeof app.sessionState?.projectName === 'string' ? app.sessionState.projectName : undefined;
+	const sessionTitle = app.sessionTitle;
 	const agentStatus =
 		app.connection.status !== 'connected'
 			? app.connection.status
@@ -128,10 +129,10 @@ export function AppShell() {
 								<p className="shrink-0 text-sm font-bold tracking-[-0.04em]">WEB AGENT</p>
 								<span className="hidden text-slate-300 sm:inline dark:text-slate-700">/</span>
 								<p
-									className="hidden max-w-56 truncate text-xs font-semibold text-slate-700 sm:block dark:text-slate-200"
-									title={app.sessionName}
+									className="hidden max-w-56 min-w-0 truncate text-xs font-semibold text-slate-700 sm:block dark:text-slate-200"
+									title={sessionTitle}
 								>
-									{app.sessionName ?? 'New session'}
+									{sessionTitle ?? 'New session'}
 								</p>
 							</div>
 							<p
