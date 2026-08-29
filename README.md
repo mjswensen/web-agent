@@ -65,6 +65,12 @@ bun run build
 bun start
 ```
 
+Compile both supported standalone binaries into `dist/` with:
+
+```sh
+bun run build:binaries
+```
+
 Useful checks:
 
 ```sh

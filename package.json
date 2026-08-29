@@ -19,6 +19,8 @@
 	"scripts": {
 		"dev": "bun --watch src/server/entry.ts --port 5100",
 		"build": "bun scripts/build-client.ts && bun scripts/embed-client.ts && bun --bun tsc -p tsconfig.server.json && bun run scripts/prepare-package.ts",
+		"build:binaries": "bun run build && bun run compile:binaries",
+		"compile:binaries": "bun scripts/compile-binaries.ts",
 		"prepack": "bun run precommit && bun run build",
 		"start": "bun build/server/server/entry.js",
 		"precommit": "bun run build && bun run check && bun run lint && bun run test && echo '\nprecommit OK ✅'",
