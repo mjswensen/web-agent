@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 
 const fakeSocket = () => {
 	let activeSessionName = 'Active session';
+	let finishActiveTurn: (() => void) | undefined;
 	class FakeWebSocket extends EventTarget {
 		static CONNECTING = 0;
 		static OPEN = 1;
@@ -233,7 +234,7 @@ const fakeSocket = () => {
 							}
 						}
 					});
-					setTimeout(() => {
+					finishActiveTurn = () => {
 						this.emit({
 							kind: 'event',
 							event: {
@@ -251,7 +252,7 @@ const fakeSocket = () => {
 							}
 						});
 						this.emit({ kind: 'event', event: { type: 'agent_settled' } });
-					}, 250);
+					};
 					break;
 				}
 				default:
@@ -268,6 +269,13 @@ const fakeSocket = () => {
 		}
 	}
 	Object.defineProperty(window, 'WebSocket', { value: FakeWebSocket, configurable: true });
+	Object.defineProperty(window, 'finishActiveTurn', {
+		value: () => {
+			finishActiveTurn?.();
+			finishActiveTurn = undefined;
+		},
+		configurable: true
+	});
 };
 
 test.beforeEach(async ({ page }) => {
@@ -290,6 +298,10 @@ test('streams a prompt, exposes tool output, and sends steering/follow-up comman
 	await page.getByRole('button', { name: 'Steer' }).click();
 	await editor.fill('Summarize afterwards');
 	await page.getByRole('button', { name: 'Follow-up' }).click();
+	await expect(editor).toHaveValue('');
+	await page.evaluate(() =>
+		(window as typeof window & { finishActiveTurn: () => void }).finishActiveTurn()
+	);
 	await expect(page.getByText('Streaming answer complete')).toBeVisible();
 	await expect(page.getByText('Changed file')).toBeVisible();
 	await expect(page.getByText('+new')).toBeVisible();
@@ -300,6 +312,10 @@ test('renders assistant Markdown without executing injected markup', async ({ pa
 	const editor = page.getByLabel('Message the agent');
 	await editor.fill('Show Markdown');
 	await page.getByRole('button', { name: 'Send' }).click();
+	await expect(editor).toHaveValue('');
+	await page.evaluate(() =>
+		(window as typeof window & { finishActiveTurn: () => void }).finishActiveTurn()
+	);
 
 	const assistant = page.getByLabel('Pi message');
 	await expect(assistant.locator('.markdown strong')).toHaveText('answer complete');
