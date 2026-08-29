@@ -40,22 +40,16 @@ export function SessionTreeDrawer() {
 			</div>
 			<div className="min-h-0 flex-1 overflow-y-auto p-3">
 				{app.tree.length === 0 && (
-					<p className="px-2 py-8 text-center text-sm text-slate-500">
-						No tree data loaded yet.
-					</p>
+					<p className="px-2 py-8 text-center text-sm text-slate-500">No tree data loaded yet.</p>
 				)}
 				{app.tree.map((node) => {
 					const entry =
-						typeof node.entry === 'object' &&
-						node.entry !== null &&
-						!Array.isArray(node.entry)
+						typeof node.entry === 'object' && node.entry !== null && !Array.isArray(node.entry)
 							? (node.entry as Record<string, unknown>)
 							: {};
 					return (
 						<SessionTreeNode
-							key={
-								typeof entry.id === 'string' ? entry.id : JSON.stringify(node)
-							}
+							key={typeof entry.id === 'string' ? entry.id : JSON.stringify(node)}
 							node={node}
 							depth={0}
 							app={app}

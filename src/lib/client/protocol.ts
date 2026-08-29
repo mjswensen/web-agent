@@ -31,8 +31,7 @@ export const browserCommands = [
 	'get_session_stats',
 	'get_session_list',
 	'get_git_status',
-	'get_git_diff',
-	'restart_pi'
+	'get_git_diff'
 ] as const;
 
 export type BrowserCommand = (typeof browserCommands)[number];
@@ -44,20 +43,12 @@ export interface CommandFrame {
 	params: JsonObject;
 }
 
-export interface DialogResponseFrame {
-	kind: 'dialog_response';
-	id: string;
-	value?: JsonValue;
-	confirmed?: boolean;
-	cancelled?: true;
-}
-
 export interface PingFrame {
 	kind: 'ping';
 	id: string;
 }
 
-export type ClientFrame = CommandFrame | DialogResponseFrame | PingFrame;
+export type ClientFrame = CommandFrame | PingFrame;
 
 export interface ResponseFrame {
 	kind: 'response';
@@ -92,15 +83,14 @@ export interface GitDiffChunkFrame {
 	error?: string;
 }
 
-export interface ExtensionUiRequestFrame extends JsonObject {
-	kind: 'extension_ui_request';
-	id: string;
-	method: string;
-}
-
 export interface ServerStatusFrame {
 	kind: 'server_status';
-	status: 'pi_starting' | 'pi_unavailable' | 'pi_restarted' | 'server_shutting_down';
+	status:
+		| 'agent_starting'
+		| 'agent_ready'
+		| 'agent_unconfigured'
+		| 'agent_unavailable'
+		| 'server_shutting_down';
 	message?: string;
 }
 
@@ -115,7 +105,6 @@ export type ServerFrame =
 	| EventsFrame
 	| SnapshotFrame
 	| GitDiffChunkFrame
-	| ExtensionUiRequestFrame
 	| ServerStatusFrame
 	| PongFrame;
 
@@ -160,36 +149,6 @@ export function parseClientFrame(value: unknown): FrameValidationResult {
 
 	if (value.kind === 'ping') return { ok: true, frame: { kind: 'ping', id } };
 
-	if (value.kind === 'dialog_response') {
-		if (value.cancelled !== undefined && value.cancelled !== true) {
-			return { ok: false, error: 'cancelled must be true when supplied.', id };
-		}
-		if (value.confirmed !== undefined && typeof value.confirmed !== 'boolean') {
-			return { ok: false, error: 'confirmed must be a boolean.', id };
-		}
-		if (value.value !== undefined && !isJsonValue(value.value)) {
-			return { ok: false, error: 'dialog value must be JSON-compatible.', id };
-		}
-		const responseValues = [
-			value.value !== undefined,
-			value.confirmed !== undefined,
-			value.cancelled === true
-		];
-		if (responseValues.filter(Boolean).length !== 1) {
-			return { ok: false, error: 'Dialog response requires exactly one response value.', id };
-		}
-		return {
-			ok: true,
-			frame: {
-				kind: 'dialog_response',
-				id,
-				...(value.value === undefined ? {} : { value: value.value }),
-				...(value.confirmed === undefined ? {} : { confirmed: value.confirmed }),
-				...(value.cancelled === undefined ? {} : { cancelled: true })
-			}
-		};
-	}
-
 	if (value.kind !== 'command') {
 		return { ok: false, error: `Unsupported WebSocket frame kind: ${value.kind}`, id };
 	}
@@ -229,5 +188,5 @@ export function parseClientFrame(value: unknown): FrameValidationResult {
 
 export function parseServerFrame(value: unknown): ServerFrame | undefined {
 	if (!isObject(value) || typeof value.kind !== 'string') return undefined;
-	return value as ServerFrame;
+	return value as unknown as ServerFrame;
 }

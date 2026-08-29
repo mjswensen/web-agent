@@ -66,7 +66,11 @@ export function ModelDialog() {
 						>
 							Refresh
 						</Button>
-						<Button variant="muted" size="sm" onClick={() => app.setLayout('modelDialogOpen', false)}>
+						<Button
+							variant="muted"
+							size="sm"
+							onClick={() => app.setLayout('modelDialogOpen', false)}
+						>
 							Close
 						</Button>
 					</>
@@ -100,7 +104,9 @@ export function ModelDialog() {
 												: 'Model'}
 									</span>
 									<span className="ml-4 text-xs text-slate-500 dark:text-slate-400">
-										{selecting === `${model.provider}/${model.id}` ? 'Selecting…' : model.id as string}
+										{selecting === `${model.provider}/${model.id}`
+											? 'Selecting…'
+											: (model.id as string)}
 									</span>
 								</button>
 							))}

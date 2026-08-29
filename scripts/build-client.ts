@@ -2,16 +2,17 @@
  * Client build script using Bun's bundler with Tailwind CSS support.
  */
 import tailwind from 'bun-plugin-tailwind';
-import { cp } from 'node:fs/promises';
+import { cp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 
 const outdir = join(import.meta.dirname, '..', 'build', 'client');
+await rm(outdir, { recursive: true, force: true });
 
 const result = await Bun.build({
 	entrypoints: [join(import.meta.dirname, '..', 'src', 'client', 'main.tsx')],
 	outdir,
 	minify: true,
-	sourcemap: 'linked',
+	sourcemap: 'none',
 	plugins: [tailwind],
 	target: 'browser',
 	naming: {

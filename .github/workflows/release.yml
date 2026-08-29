@@ -2,8 +2,7 @@ name: Release standalone binaries
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
 
 permissions:
   contents: write
@@ -12,30 +11,43 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-
-      - name: Build runtime and standalone binaries
+      - uses: actions/checkout@v5
+      - name: Build required standalone binaries
         uses: devcontainers/ci@v0.3
         with:
           runCmd: |
             set -eu
             mise install
             bun install --frozen-lockfile
-            bun run build
+            bun run precommit
             mkdir -p dist
             bun -p 'require("./package.json").version' > dist/package-version
-            bun build ./build/server-runtime/server/entry.js --compile --minify --bytecode --target=bun-linux-x64 --outfile=dist/web-agent-linux-x64
-            bun build ./build/server-runtime/server/entry.js --compile --minify --bytecode --target=bun-linux-arm64 --outfile=dist/web-agent-linux-arm64
-            bun build ./build/server-runtime/server/entry.js --compile --minify --bytecode --target=bun-darwin-x64 --outfile=dist/web-agent-darwin-x64
-            bun build ./build/server-runtime/server/entry.js --compile --minify --bytecode --target=bun-darwin-arm64 --outfile=dist/web-agent-darwin-arm64
-            bun build ./build/server-runtime/server/entry.js --compile --minify --bytecode --target=bun-windows-x64 --outfile=dist/web-agent-windows-x64.exe
+            bun build ./build/server/server/entry.js --compile --minify --bytecode --external @silvia-odwyer/photon-node --target=bun-linux-x64 --outfile=dist/web-agent-linux-x64
+            bun build ./build/server/server/entry.js --compile --minify --bytecode --external @silvia-odwyer/photon-node --target=bun-darwin-arm64 --outfile=dist/web-agent-darwin-arm64
             cp ./install.sh ./dist/install.sh
-
+      - name: Smoke test native standalone without adjacent dependencies
+        run: |
+          set -eu
+          root="$PWD"
+          tmp="$(mktemp -d)"
+          home="$(mktemp -d)"
+          cp dist/web-agent-linux-x64 "$tmp/web-agent"
+          cd "$tmp"
+          env HOME="$home" PATH=/usr/bin PI_OFFLINE=1 ./web-agent --no-session --port 43177 >server.log 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          for i in $(seq 1 40); do
+            if /usr/bin/curl -fsS http://127.0.0.1:43177/ >/dev/null; then break; fi
+            sleep 0.25
+          done
+          /usr/bin/curl -fsS http://127.0.0.1:43177/ | grep -q '<div id="app"></div>'
+          kill -TERM "$pid"
+          wait "$pid"
+          test ! -e "$tmp/node_modules"
+          cd "$root"
       - name: Read package version
         id: package_version
         run: echo "version=$(cat dist/package-version)" >> "$GITHUB_OUTPUT"
-
       - name: Publish versioned release
         uses: softprops/action-gh-release@v2
         with:
@@ -44,11 +56,9 @@ jobs:
           target_commitish: ${{ github.sha }}
           make_latest: true
           body: |
-            Standalone binaries for Web Agent version `${{ steps.package_version.outputs.version }}`.
+            Web Agent `${{ steps.package_version.outputs.version }}` embeds the Pi SDK and client assets.
+            Standalone binaries require no Pi, Node.js, Bun, node_modules, or adjacent web assets.
           files: |
             dist/web-agent-linux-x64
-            dist/web-agent-linux-arm64
-            dist/web-agent-darwin-x64
             dist/web-agent-darwin-arm64
-            dist/web-agent-windows-x64.exe
             dist/install.sh

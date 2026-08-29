@@ -40,6 +40,10 @@ resolve_tag() {
 
 os="$(detect_os)"
 arch="$(detect_arch)"
+if ! { [ "$os" = 'linux' ] && [ "$arch" = 'x64' ]; } && ! { [ "$os" = 'darwin' ] && [ "$arch" = 'arm64' ]; }; then
+	echo "No required Web Agent 2.0 standalone binary is published for ${os}-${arch}. Use the Bun package instead." >&2
+	exit 1
+fi
 asset="${BIN_NAME}-${os}-${arch}"
 install_dir="${WEB_AGENT_INSTALL_DIR:-/usr/local/bin}"
 

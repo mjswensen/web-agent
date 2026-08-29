@@ -4,6 +4,8 @@ pnpm-lock.yaml
 yarn.lock
 bun.lock
 bun.lockb
+skills-lock.json
 
 # Miscellaneous
 /static/
+/src/server/embedded-assets.generated.ts

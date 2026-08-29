@@ -6,7 +6,6 @@ import { CommandPalette } from './CommandPalette';
 import { CompactDialog } from './CompactDialog';
 import { Conversation } from './Conversation';
 import { Editor } from './Editor';
-import { ExtensionDialogHost } from './ExtensionDialogHost';
 import { Footer } from './Footer';
 import { GitStatusDrawer } from './GitStatusDrawer';
 import { MobileActionSheet } from './MobileActionSheet';
@@ -17,7 +16,6 @@ import { SessionDrawer } from './SessionDrawer';
 import { SessionTreeDrawer } from './SessionTreeDrawer';
 import { ThinkingDialog } from './ThinkingDialog';
 import { ToastHost } from './ToastHost';
-import { WidgetRegion } from './WidgetRegion';
 import { Button } from './core/Button';
 
 export function AppShell() {
@@ -31,15 +29,17 @@ export function AppShell() {
 	const agentStatus =
 		app.connection.status !== 'connected'
 			? app.connection.status
-			: !app.pi.available
-				? 'Agent unavailable'
+			: app.agent.status !== 'ready'
+				? app.agent.status === 'unconfigured'
+					? 'Setup required'
+					: 'Agent unavailable'
 				: app.isAgentActive
 					? 'Agent working'
 					: 'Ready';
 	const agentStatusClass =
 		app.connection.status !== 'connected'
 			? 'text-slate-500 dark:text-slate-400'
-			: !app.pi.available
+			: app.agent.status !== 'ready'
 				? 'text-rose-600 dark:text-rose-400'
 				: app.isAgentActive
 					? 'text-amber-600 dark:text-amber-400'
@@ -66,20 +66,6 @@ export function AppShell() {
 	}
 
 	const closeTopOverlay = useCallback((): boolean => {
-		const dialog = app.activeDialog;
-		if (dialog) {
-			if (!client) return true;
-			try {
-				client.sendDialogResponse(
-					dialog.id,
-					dialog.method === 'confirm' ? { confirmed: false } : { cancelled: true }
-				);
-				app.removeDialog(dialog.id);
-			} catch (error) {
-				app.setConnectionError(error instanceof Error ? error.message : String(error));
-			}
-			return true;
-		}
 		const overlays: Array<keyof LayoutState> = [
 			'mobileActionsOpen',
 			'treeDrawerOpen',
@@ -94,7 +80,7 @@ export function AppShell() {
 		if (!top) return false;
 		app.setLayout(top, false);
 		return true;
-	}, [app, client]);
+	}, [app]);
 
 	// Escape key handler and document title
 	useEffect(() => {
@@ -109,9 +95,8 @@ export function AppShell() {
 	}, [closeTopOverlay]);
 
 	useEffect(() => {
-		document.title =
-			app.extension.title ?? (projectName ? `Web Agent — ${projectName}` : 'Web Agent');
-	}, [app.extension.title, projectName]);
+		document.title = projectName ? `Web Agent — ${projectName}` : 'Web Agent';
+	}, [projectName]);
 
 	return (
 		<div className="flex h-dvh min-h-0 flex-col bg-slate-100/75 font-mono text-slate-900 dark:bg-slate-950/85 dark:text-slate-100">
@@ -169,13 +154,39 @@ export function AppShell() {
 							className="hidden items-center border border-slate-300 bg-slate-50 p-0.5 sm:flex dark:border-slate-700 dark:bg-slate-950"
 							aria-label="Agent tools"
 						>
-							<Button size="toolbar" variant="ghost" onClick={openSessions}>Sessions</Button>
-							<Button size="toolbar" variant="ghost" onClick={openTree}>Tree</Button>
-							<Button size="toolbar" variant="ghost" onClick={openChanges}>Changes</Button>
-							<Button size="toolbar" variant="ghost" onClick={() => app.setLayout('commandPaletteOpen', true)}>Commands</Button>
-							<Button size="toolbar" variant="ghost" onClick={openModelDialog}>Model</Button>
-							<Button size="toolbar" variant="ghost" onClick={() => app.setLayout('thinkingDialogOpen', true)}>Think</Button>
-							<Button size="toolbar" variant="ghost" onClick={() => app.setLayout('compactDialogOpen', true)}>Compact</Button>
+							<Button size="toolbar" variant="ghost" onClick={openSessions}>
+								Sessions
+							</Button>
+							<Button size="toolbar" variant="ghost" onClick={openTree}>
+								Tree
+							</Button>
+							<Button size="toolbar" variant="ghost" onClick={openChanges}>
+								Changes
+							</Button>
+							<Button
+								size="toolbar"
+								variant="ghost"
+								onClick={() => app.setLayout('commandPaletteOpen', true)}
+							>
+								Commands
+							</Button>
+							<Button size="toolbar" variant="ghost" onClick={openModelDialog}>
+								Model
+							</Button>
+							<Button
+								size="toolbar"
+								variant="ghost"
+								onClick={() => app.setLayout('thinkingDialogOpen', true)}
+							>
+								Think
+							</Button>
+							<Button
+								size="toolbar"
+								variant="ghost"
+								onClick={() => app.setLayout('compactDialogOpen', true)}
+							>
+								Compact
+							</Button>
 						</nav>
 					</div>
 				</div>
@@ -183,17 +194,14 @@ export function AppShell() {
 
 			<RecoveryPanel />
 			<Conversation />
-			<WidgetRegion widgets={app.widgetsAboveEditor} />
 			<QueuePanel />
 			<Editor />
-			<WidgetRegion widgets={app.widgetsBelowEditor} />
 			<Footer />
 
 			<CommandPalette />
 			<ModelDialog />
 			<ThinkingDialog />
 			<CompactDialog />
-			<ExtensionDialogHost />
 			<ToastHost />
 			<SessionDrawer />
 			<SessionTreeDrawer />

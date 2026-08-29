@@ -58,7 +58,7 @@ const sanitizerOptions: sanitizeHtml.IOptions = {
 	allowProtocolRelative: false
 };
 
-/** Renders the supported Markdown subset as sanitized HTML safe for Svelte {@html}. */
+/** Renders the supported Markdown subset as sanitized HTML safe for React rendering. */
 export function renderMarkdown(source: string): string {
 	return sanitizeHtml(markdown.render(source), sanitizerOptions);
 }

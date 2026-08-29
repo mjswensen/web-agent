@@ -1,40 +1,45 @@
 import { DefaultGitStatusProvider } from './git-status.js';
 import { RpcBroker } from './rpc-broker.js';
-import { type PiLifecycleOptions } from './pi-lifecycle.js';
-import { PiSupervisor } from './pi-supervisor.js';
+import { createSdkRuntime, type SdkRuntimeOwner } from './sdk-runtime.js';
+import { SdkTransport } from './sdk-transport.js';
 import { createBunWebSocketHub, type BunWebSocketHub } from './websocket.js';
+import type { SdkStartupOptions } from './cli.js';
 
 export interface WebAgentRuntime {
 	broker: RpcBroker;
-	supervisor: PiSupervisor;
+	sdk: SdkRuntimeOwner;
 	webSockets: BunWebSocketHub;
 	close(): Promise<void>;
 }
 
-/** Composes one restartable Pi child, one broker, and Bun's `/ws` handler. */
+/** Composes one embedded SDK runtime, one broker, and Bun's `/ws` handler. */
 export async function createWebAgentRuntime(
-	piOptions: PiLifecycleOptions
+	startup: SdkStartupOptions,
+	cwd = process.cwd()
 ): Promise<WebAgentRuntime> {
-	const supervisor = new PiSupervisor(piOptions);
-	const piProcess = await supervisor.start();
-	const broker = new RpcBroker(piProcess, {
-		cwd: piOptions.cwd,
-		sessionList: supervisor.sessionList,
-		gitStatus: new DefaultGitStatusProvider({ cwd: piOptions.cwd ?? process.cwd() }),
-		restartPi: () => supervisor.restart()
+	const sdk = await createSdkRuntime(startup, cwd);
+	const transport = new SdkTransport(sdk.runtime);
+	const broker = new RpcBroker(transport, {
+		cwd: sdk.launchCwd,
+		sessionList: sdk.sessionList,
+		gitStatus: new DefaultGitStatusProvider({ cwd: sdk.launchCwd }),
+		agentStatus: sdk.availability === 'unconfigured' ? 'unconfigured' : 'ready'
 	});
 	const webSockets = createBunWebSocketHub(broker);
 	let closing: Promise<void> | undefined;
+	for (const diagnostic of sdk.diagnostics)
+		console.error(`[${diagnostic.type}] ${diagnostic.message}`);
 
 	return {
 		broker,
-		supervisor,
+		sdk,
 		webSockets,
 		close: () => {
 			closing ??= (async () => {
 				broker.announceStatus('server_shutting_down');
 				await webSockets.close();
-				await supervisor.stop(250);
+				await sdk.close();
+				transport.dispose();
 				broker.dispose();
 			})();
 			return closing;

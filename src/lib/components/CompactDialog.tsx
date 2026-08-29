@@ -55,7 +55,11 @@ export function CompactDialog() {
 				className="mt-2 w-full"
 			/>
 			<div className="mt-4 flex justify-end gap-2">
-				<Button variant="muted" size="touch" onClick={() => app.setLayout('compactDialogOpen', false)}>
+				<Button
+					variant="muted"
+					size="touch"
+					onClick={() => app.setLayout('compactDialogOpen', false)}
+				>
 					Cancel
 				</Button>
 				<Button variant="primary" size="touch" onClick={() => void compact()} disabled={compacting}>

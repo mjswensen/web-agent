@@ -49,7 +49,11 @@ export function ThinkingDialog() {
 				title="Thinking level"
 				description="Pi may reject levels unsupported by the active model."
 				actions={
-					<Button variant="muted" size="sm" onClick={() => app.setLayout('thinkingDialogOpen', false)}>
+					<Button
+						variant="muted"
+						size="sm"
+						onClick={() => app.setLayout('thinkingDialogOpen', false)}
+					>
 						Close
 					</Button>
 				}

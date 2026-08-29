@@ -11,20 +11,19 @@ export function Editor() {
 	const [sending, setSending] = useState(false);
 	const wasSlashEntry = useRef(false);
 
-	const isConnected = app.canMutateSession;
+	const isConnected = app.canMutateSession && app.agent.status === 'ready';
 	const action = app.isAgentActive ? 'Steer' : 'Send';
 	const canSend = isConnected && !sending && app.editorText.trim().length > 0;
 
 	function hasOverlay(): boolean {
 		return Boolean(
-			app.activeDialog ||
-				app.layout.commandPaletteOpen ||
-				app.layout.modelDialogOpen ||
-				app.layout.thinkingDialogOpen ||
-				app.layout.compactDialogOpen ||
-				app.layout.sessionDrawerOpen ||
-				app.layout.treeDrawerOpen ||
-				app.layout.mobileActionsOpen
+			app.layout.commandPaletteOpen ||
+			app.layout.modelDialogOpen ||
+			app.layout.thinkingDialogOpen ||
+			app.layout.compactDialogOpen ||
+			app.layout.sessionDrawerOpen ||
+			app.layout.treeDrawerOpen ||
+			app.layout.mobileActionsOpen
 		);
 	}
 
@@ -88,8 +87,13 @@ export function Editor() {
 			aria-label="Message editor"
 		>
 			<div className="mx-auto flex w-full max-w-5xl flex-col gap-2">
-				{!app.pi.available ? (
-					<p className="text-xs text-red-700">{app.pi.message ?? 'Pi is unavailable.'}</p>
+				{app.agent.status !== 'ready' ? (
+					<p className="text-xs text-red-700">
+						{app.agent.message ??
+							(app.agent.status === 'unconfigured'
+								? 'Configure provider credentials in ~/.pi/agent/auth.json or an environment variable, then restart Web Agent.'
+								: 'The agent is unavailable. Restart Web Agent.')}
+					</p>
 				) : app.connection.status !== 'connected' ? (
 					<p className="text-xs text-amber-700">
 						{app.connection.status === 'connecting'
@@ -107,7 +111,7 @@ export function Editor() {
 					}}
 				>
 					<label className="sr-only" htmlFor="prompt-editor">
-						Message Pi
+						Message the agent
 					</label>
 					<Textarea
 						id="prompt-editor"
@@ -120,7 +124,7 @@ export function Editor() {
 						rows={3}
 						placeholder={
 							app.isAgentActive
-								? 'Add direction while Pi is working…'
+								? 'Add direction while the agent is working…'
 								: 'Describe the outcome you want…'
 						}
 						className="min-h-20 w-full resize-y border-0 bg-transparent px-2 py-1 shadow-none transition outline-none placeholder:text-slate-400 focus:border-transparent focus:ring-0 disabled:cursor-not-allowed disabled:bg-slate-100 dark:bg-transparent dark:disabled:bg-slate-900"

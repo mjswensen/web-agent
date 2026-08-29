@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import { RpcBroker, type PiRpcTransport } from './rpc-broker.js';
+import { RpcBroker } from './rpc-broker.js';
+import type { AgentTransport } from './agent-transport.js';
 import { createBunWebSocketHub, type BunWebSocketHub } from './websocket.js';
 
-class FakePi implements PiRpcTransport {
+class FakePi implements AgentTransport {
 	readonly writes: unknown[] = [];
 
 	async send(command: unknown): Promise<void> {
@@ -11,10 +12,7 @@ class FakePi implements PiRpcTransport {
 	onRecord(): () => void {
 		return () => undefined;
 	}
-	onProtocolError(): () => void {
-		return () => undefined;
-	}
-	onExit(): () => void {
+	onError(): () => void {
 		return () => undefined;
 	}
 }

@@ -99,8 +99,8 @@ export function Conversation() {
 									What should Pi work on?
 								</h1>
 								<p className="mx-auto mt-4 max-w-md text-sm leading-6 text-slate-600 dark:text-slate-400">
-									Describe an outcome, point to relevant files, or ask for an investigation. Progress,
-									tool calls, and changes will stream into this workspace.
+									Describe an outcome, point to relevant files, or ask for an investigation.
+									Progress, tool calls, and changes will stream into this workspace.
 								</p>
 							</div>
 						</div>
@@ -137,4 +137,3 @@ export function Conversation() {
 		</div>
 	);
 }
-

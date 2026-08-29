@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
-import { existsSync } from 'node:fs';
-import { join } from 'node:path';
 import packageJson from '../../package.json' with { type: 'json' };
+import { Buffer } from 'node:buffer';
 import { CLI_HELP, parseCliArgs } from './cli.js';
+import { embeddedAssets } from './embedded-assets.generated.js';
 import { createWebAgentRuntime } from './main.js';
 import { findAvailablePort } from './port.js';
 
@@ -11,18 +11,13 @@ function localUrl(host: string, port: number): string {
 }
 
 function openBrowser(url: string): void {
-	const command: { executable: string; args: string[] } =
+	const command =
 		process.platform === 'darwin'
-			? { executable: 'open', args: [url] }
+			? ['open', url]
 			: process.platform === 'win32'
-				? { executable: 'cmd', args: ['/c', 'start', '', url] }
-				: { executable: 'xdg-open', args: [url] };
-	const child = Bun.spawn({
-		cmd: [command.executable, ...command.args],
-		stdin: 'ignore',
-		stdout: 'ignore',
-		stderr: 'ignore'
-	});
+				? ['cmd', '/c', 'start', '', url]
+				: ['xdg-open', url];
+	const child = Bun.spawn({ cmd: command, stdin: 'ignore', stdout: 'ignore', stderr: 'ignore' });
 	child.unref();
 }
 
@@ -31,52 +26,33 @@ if (process.argv.slice(2).some((argument) => argument === '--help' || argument =
 	process.exit(0);
 }
 
-/** Resolve the directory containing pre-built client assets. */
-function resolveClientDir(): string {
-	const scriptDir = import.meta.dirname ?? __dirname;
-	// Production: build/server/server/entry.js → ../../client → build/client/
-	const prodCandidate = join(scriptDir, '..', '..', 'client');
-	if (existsSync(join(prodCandidate, 'index.html'))) return prodCandidate;
-	// Dev (bun src/server/entry.ts): src/server → ../../build/client
-	return join(scriptDir, '..', '..', 'build', 'client');
+function assetResponse(pathname: string): Response {
+	const key = pathname === '/' ? '/index.html' : pathname;
+	const asset = embeddedAssets[key as keyof typeof embeddedAssets] ?? embeddedAssets['/index.html'];
+	return new Response(Buffer.from(asset.base64, 'base64'), {
+		headers: {
+			'content-type': asset.contentType,
+			'cache-control': key === '/index.html' ? 'no-cache' : 'public, max-age=31536000, immutable'
+		}
+	});
 }
 
 try {
-	const argv = process.argv.slice(2);
-	const cli = parseCliArgs(argv);
+	const cli = parseCliArgs(process.argv.slice(2));
 	const port = findAvailablePort(cli.host, cli.port);
-
-	const runtime = await createWebAgentRuntime({ argv, cwd: process.cwd() });
-	const clientDir = resolveClientDir();
-
+	const runtime = await createWebAgentRuntime(cli.sdk, process.cwd());
 	const server = Bun.serve({
 		hostname: cli.host,
 		port,
-		async fetch(request, server) {
+		fetch(request, server) {
 			const url = new URL(request.url);
-
-			// WebSocket upgrade
 			if (url.pathname === '/ws') {
 				const upgraded = server.upgrade(request, { data: undefined });
-				if (!upgraded) {
-					return new Response('WebSocket upgrade failed.', { status: 400 });
-				}
-				return undefined as unknown as Response;
+				return upgraded
+					? (undefined as unknown as Response)
+					: new Response('WebSocket upgrade failed.', { status: 400 });
 			}
-
-			// Serve static client assets with path traversal protection
-			const resolved = join(clientDir, decodeURIComponent(url.pathname));
-			if (!resolved.startsWith(clientDir + '/') && resolved !== clientDir) {
-				return new Response('Forbidden', { status: 403 });
-			}
-			const filePath = url.pathname === '/' ? join(clientDir, 'index.html') : resolved;
-			const file = Bun.file(filePath);
-			if (await file.exists()) {
-				return new Response(file);
-			}
-
-			// SPA fallback: serve index.html for unmatched routes
-			return new Response(Bun.file(join(clientDir, 'index.html')));
+			return assetResponse(url.pathname);
 		},
 		websocket: runtime.webSockets.handler
 	});

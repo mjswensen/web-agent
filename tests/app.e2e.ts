@@ -61,7 +61,7 @@ const fakeSocket = () => {
 						kind: 'snapshot',
 						snapshotType: 'commands',
 						data: {
-							commands: [{ name: 'review', description: 'Review changes', source: 'extension' }]
+							commands: [{ name: 'review', description: 'Review changes', source: 'prompt' }]
 						}
 					});
 					respond({});
@@ -280,7 +280,7 @@ test('streams a prompt, exposes tool output, and sends steering/follow-up comman
 	await page.goto('/');
 	await expect(page).toHaveTitle('Web Agent — demo-project');
 	await expect(page.getByText('/workspaces/demo-project')).toBeVisible();
-	const editor = page.getByLabel('Message Pi');
+	const editor = page.getByLabel('Message the agent');
 	await expect(editor).toBeEnabled();
 	await editor.fill('Inspect the app');
 	await page.getByRole('button', { name: 'Send' }).click();
@@ -297,7 +297,7 @@ test('streams a prompt, exposes tool output, and sends steering/follow-up comman
 
 test('renders assistant Markdown without executing injected markup', async ({ page }) => {
 	await page.goto('/');
-	const editor = page.getByLabel('Message Pi');
+	const editor = page.getByLabel('Message the agent');
 	await editor.fill('Show Markdown');
 	await page.getByRole('button', { name: 'Send' }).click();
 
@@ -315,7 +315,7 @@ test('renders assistant Markdown without executing injected markup', async ({ pa
 
 test('supports Command+Enter and keeps a dismissed slash palette closed', async ({ page }) => {
 	await page.goto('/');
-	const editor = page.getByLabel('Message Pi');
+	const editor = page.getByLabel('Message the agent');
 	await editor.fill('line one');
 	await editor.press('Enter');
 	await expect(editor).toHaveValue('line one\n');

@@ -1,44 +1,63 @@
 # Web Agent
 
-Web Agent is a local, mobile-responsive browser interface for [Pi](https://pi.dev). It is a standalone Bun package, not a Pi extension. One Web Agent server owns one long-lived `pi --mode rpc` child process and shares its active session with every connected browser tab.
+Web Agent is a local, mobile-responsive React interface for the Pi coding-agent SDK. Web Agent 2.0 embeds one long-lived `AgentSessionRuntime` directly in its Bun server; it does not launch or require the Pi CLI.
 
-> **Security:** Web Agent controls an agent with local filesystem and shell access. It defaults to loopback, but `--host`/`--bind` can expose it on any listen address. Only bind to a reachable interface when that exposure is intended. The read-only Changes view displays tracked and untracked file contents, which can include newly created credentials.
-
-## Requirements
-
-- Bun 1.3.14 (the pinned version in `mise.toml`) for package installs and source checkouts
-- A working Pi installation available on `PATH`, or an executable path supplied with `--pi` or `PI_BIN`
-
-The standalone release binaries embed Bun and do not require a separate Bun installation.
+> **Security:** Web Agent controls an agent with local filesystem and shell access. It defaults to loopback, but `--host`/`--bind` can expose it on another interface. Only do this intentionally. The read-only Changes view can display tracked and untracked file contents, including credentials.
 
 ## Install and run
 
-Install the package globally:
-
-```sh
-bun add --global @mjswensen/web-agent
-web-agent
-```
-
-Or install the latest standalone binary from GitHub Releases:
+Install the standalone binary:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/mjswensen/web-agent/main/install.sh | sh
 web-agent
 ```
 
-> `install.sh` supports Linux and macOS. Windows users can download `web-agent-windows-x64.exe`
-> from the latest release assets.
+Required standalone targets are Linux x64 and macOS arm64. A standalone binary is one file and requires no Pi, Node.js, Bun, `node_modules`, or adjacent browser assets. Provider credentials and network access are still required for model calls. An operating-system shell is required by shell tools; Git is optional and used only by Git-specific features.
 
-Standalone releases currently include:
+The Bun/npm package remains supported and requires Bun 1.3.14 or newer:
 
-- Linux x64
-- Linux arm64
-- macOS x64
-- macOS arm64
-- Windows x64
+```sh
+bun add --global @mjswensen/web-agent
+web-agent
+```
 
-Or run a checked-out repository:
+The server prints its final URL, normally `http://127.0.0.1:3000`. It opens a browser only with `--open`; an occupied port falls forward to the next available port.
+
+## Provider and Pi data compatibility
+
+Web Agent continues to use Pi's existing `~/.pi/agent/` files, including `auth.json`, `models.json`, `settings.json`, project trust decisions, and JSONL sessions. Provider environment variables and `--api-key` are also supported. If no authenticated model exists, sessions and settings remain available while Send is disabled with setup guidance.
+
+Direct user/project context files, skills, and prompt templates are loaded subject to saved project trust. Untrusted project resources are ignored with a startup diagnostic. External extensions, extension UI, themes, Pi package resources, package installation/update, image input, telemetry, update checks, and automatic model-catalog refreshes are intentionally unsupported. `PI_OFFLINE` remains honored.
+
+## CLI reference
+
+| Option                                  | Description                                               |
+| --------------------------------------- | --------------------------------------------------------- |
+| `--port <number>`                       | Requested port; defaults to `PI_WEB_PORT` or `3000`.      |
+| `--host <address>` / `--bind <address>` | Listen address; defaults to `127.0.0.1`.                  |
+| `--open`                                | Open the final URL.                                       |
+| `--continue`, `-c`                      | Continue the latest launch-project session.               |
+| `--session <path-or-id>`                | Open a session belonging to the launch project.           |
+| `--no-session`                          | Disable session persistence.                              |
+| `--session-dir <path>`                  | Use an explicit session directory.                        |
+| `--name <name>`                         | Name the initial session.                                 |
+| `--provider <provider>`                 | Select a provider.                                        |
+| `--model <model>`                       | Select a model, optionally as `provider/model`.           |
+| `--thinking <level>`                    | Select the thinking level.                                |
+| `--api-key <key>`                       | Set a runtime-only key; requires an unambiguous provider. |
+
+Web Agent 2.0 removed `--pi`, `PI_BIN`, `--resume`, and `-r` because no external Pi executable is used.
+
+## Interface
+
+- **Send** submits while idle; during active work it becomes **Steer**. Command+Enter invokes it on macOS.
+- **Follow-up** queues a message after the current run settles; **Abort** stops active work.
+- Header controls expose commands, models, thinking, compaction, launch-project sessions, the read-only tree, and Git Changes.
+- All connected tabs share the runtime, active session, conversation, queue, snapshots, and transitions.
+- Session new/switch/fork/clone operations are serialized to prevent cross-tab races.
+
+## Development
 
 ```sh
 bun install --frozen-lockfile
@@ -46,93 +65,18 @@ bun run build
 bun start
 ```
 
-The server prints its final local URL, normally `http://127.0.0.1:3000`. It does **not** open a browser unless requested.
-
-```sh
-web-agent --port 4000 --open
-```
-
-If the requested port is already occupied, Web Agent chooses the next available local port and prints that URL.
-
-### Pi resolution
-
-Pi is selected in this order:
-
-1. `--pi <path>`
-2. `PI_BIN`
-3. `pi` found on `PATH`
-
-For example:
-
-```sh
-web-agent --pi "$HOME/.local/bin/pi"
-PI_BIN=/opt/pi/bin/pi web-agent
-```
-
-If no executable Pi binary is found, Web Agent exits with instructions rather than starting a partially working server.
-
-## CLI reference
-
-| Option / environment variable           | Description                                                                     |
-| --------------------------------------- | ------------------------------------------------------------------------------- |
-| `--port <number>`                       | Requested local HTTP port. Overrides `PI_WEB_PORT`. Default: `3000`.            |
-| `PI_WEB_PORT`                           | Requested port when `--port` is omitted.                                        |
-| `--host <address>` / `--bind <address>` | Listen address. Default: `127.0.0.1`. Any address supported by Bun is accepted. |
-| `--open`                                | Open the selected URL using the operating system browser handler.               |
-| `--pi <path>`                           | Explicit Pi executable.                                                         |
-| `PI_BIN`                                | Fallback Pi executable when `--pi` is absent.                                   |
-
-These Pi startup options are forwarded to the child, which always receives `--mode rpc`:
-
-```text
---continue, -c      --resume, -r       --session <path-or-id>
---no-session        --session-dir <path>
---name <name>       --provider <provider>  --model <model>
---thinking <level>  --api-key <key>
-```
-
-Run `web-agent --help` for the concise command-line summary.
-
-## Using the interface
-
-- **Send** submits a prompt while Pi is idle. During an active run it becomes **Steer**. On macOS, Command+Enter invokes the same action.
-- **Follow-up** queues a message for after Pi fully settles.
-- **Abort** stops active work.
-- Use the header controls (or the mobile **Menu**) for commands, models, thinking level, compaction, sessions, the session tree, and **Changes**.
-- **Changes** is a shared, read-only Git worktree snapshot for the launch directory. It shows branch, staged/unstaged patches, and required untracked-file previews; open it or press Refresh to collect a new snapshot. Truncated previews offer **Load full diff**, which streams that status-derived diff over the existing connection.
-- Tool calls stream output live with arguments, output, and edit diffs shown in full.
-- Thinking is kept separate from assistant text and shown in full.
-- All tabs see the same active session, conversation, queue, and session transitions.
-
-Saved sessions are listed from Pi's `SessionManager` for the current project only. The session tree is intentionally view-only: Pi RPC supports tree inspection and fork/clone actions, but does not expose in-place tree navigation.
-
-If Pi exits, the browser preserves the visible conversation and offers **Restart Pi**. Restarting creates one new child process while keeping the Web Agent server running.
-
-## Development
-
-```sh
-bun install --frozen-lockfile
-bun run dev
-```
-
-`bun run dev` starts the development server with --watch (manual browser reload on changes). For the production adapter-bun runtime, use `bun run build && bun start`.
-
 Useful checks:
 
 ```sh
-bun run check       # TypeScript diagnostics
-bun run lint        # Prettier and ESLint
-bun run test:unit   # Vitest unit tests
-bun run test:e2e    # Playwright browser tests
-bun run precommit   # Build, checks, lint, unit tests, and E2E tests
+bun run check
+bun run lint
+bun run test:unit
+bun run test:e2e
+bun run precommit
 ```
 
-The E2E suite uses a deterministic in-browser RPC transport and does not require provider credentials. Unit tests use explicit Bun-compatible process and stream fakes at the Pi stdin/stdout boundary.
-
-## Current v1 boundaries
-
-Web Agent deliberately does not provide terminal emulation, Pi theme loading, file `@` completion, image attachments, user-bash mode, Pi sharing/export UI, or multiple concurrent active Pi sessions. See [`SPECIFICATION.md`](./SPECIFICATION.md) for the complete design and scope.
+The browser is built and encoded into `src/server/embedded-assets.generated.ts`; release executables serve all assets from memory through the existing `Bun.serve` instance. Tests use fake transports/providers and require no real credentials.
 
 ## License
 
-[MIT](./LICENSE)
+[MIT](./LICENSE). See [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md) for bundled dependency notices.

@@ -16,7 +16,7 @@ export function ToastHost() {
 			className="pointer-events-none fixed right-3 bottom-3 z-50 flex w-[min(24rem,calc(100vw-1.5rem))] flex-col gap-2"
 			aria-live="polite"
 		>
-			{app.extension.toasts.map((toast) => (
+			{app.notifications.toasts.map((toast) => (
 				<div
 					key={toast.id}
 					className={`pointer-events-auto flex items-start justify-between gap-3 rounded-lg border px-3 py-3 text-sm shadow-lg ${palette(toast.type)}`}

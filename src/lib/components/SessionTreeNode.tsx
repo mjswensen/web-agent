@@ -92,9 +92,7 @@ export function SessionTreeNode({ node, depth, app, client }: SessionTreeNodePro
 			{expanded &&
 				children.map((child) => {
 					const childEntry =
-						typeof child.entry === 'object' &&
-						child.entry !== null &&
-						!Array.isArray(child.entry)
+						typeof child.entry === 'object' && child.entry !== null && !Array.isArray(child.entry)
 							? (child.entry as Record<string, unknown>)
 							: {};
 					return (

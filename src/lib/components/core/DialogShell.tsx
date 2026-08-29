@@ -4,7 +4,8 @@ type DialogKind = 'center' | 'top' | 'drawer';
 type MaxWidth = 'md' | 'lg' | 'xl' | '2xl';
 
 const overlayClasses = {
-	center: 'fixed inset-0 z-30 grid place-items-end bg-slate-950/55 p-3 backdrop-blur-[2px] sm:place-items-center',
+	center:
+		'fixed inset-0 z-30 grid place-items-end bg-slate-950/55 p-3 backdrop-blur-[2px] sm:place-items-center',
 	top: 'fixed inset-0 z-30 bg-slate-950/50 p-3 backdrop-blur-[2px] sm:grid sm:place-items-start sm:pt-20',
 	drawer: 'fixed inset-0 z-30 bg-slate-950/55 p-0 backdrop-blur-[2px] sm:p-4'
 } as const;

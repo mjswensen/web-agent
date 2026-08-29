@@ -1,13 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { parseClientFrame } from '../lib/client/protocol.js';
-import { mapCommandToPi, RpcBroker, type PiRpcTransport } from './rpc-broker.js';
+import { mapCommandToAgent, RpcBroker } from './rpc-broker.js';
+import type { AgentTransport } from './agent-transport.js';
 
-class FakePi implements PiRpcTransport {
+class FakePi implements AgentTransport {
 	readonly writes: unknown[] = [];
 	private recordListener: ((record: unknown) => void) | undefined;
 	private errorListener: ((error: Error) => void) | undefined;
-	private exitListener:
-		((exit: { code: number | null; signal: string | number | null }) => void) | undefined;
 
 	async send(command: unknown): Promise<void> {
 		this.writes.push(command);
@@ -18,15 +17,8 @@ class FakePi implements PiRpcTransport {
 		return () => undefined;
 	}
 
-	onProtocolError(listener: (error: Error) => void): () => void {
+	onError(listener: (error: Error) => void): () => void {
 		this.errorListener = listener;
-		return () => undefined;
-	}
-
-	onExit(
-		listener: (exit: { code: number | null; signal: string | number | null }) => void
-	): () => void {
-		this.exitListener = listener;
 		return () => undefined;
 	}
 
@@ -43,7 +35,6 @@ function command(
 		| 'get_session_list'
 		| 'get_git_status'
 		| 'get_git_diff'
-		| 'restart_pi'
 		| 'set_session_name'
 ) {
 	const frame = parseClientFrame({
@@ -71,9 +62,9 @@ describe('browser protocol validation and Pi RPC broker', () => {
 			ok: false,
 			error: 'Unsupported command: bash'
 		});
-		expect(() => mapCommandToPi(command('a', 'prompt'), 'pi-a')).not.toThrow();
+		expect(() => mapCommandToAgent(command('a', 'prompt'), 'pi-a')).not.toThrow();
 		expect(() =>
-			mapCommandToPi(
+			mapCommandToAgent(
 				{ kind: 'command', id: 'a', command: 'set_model', params: { provider: 'x' } },
 				'pi-a'
 			)
@@ -99,28 +90,6 @@ describe('browser protocol validation and Pi RPC broker', () => {
 			{ kind: 'response', id: 'browser-request', command: 'prompt', success: true }
 		]);
 		expect(second).toEqual([]);
-	});
-
-	it('rebinds to an explicitly restarted Pi transport', async () => {
-		const crashed = new FakePi();
-		const restarted = new FakePi();
-		const broker = new RpcBroker(crashed, { restartPi: async () => restarted });
-		const frames: unknown[] = [];
-		broker.addClient({ id: 'client', send: (frame) => frames.push(frame) });
-
-		await broker.handleClientFrame('client', command('restart', 'restart_pi'));
-		await broker.handleClientFrame('client', command('state-after-restart', 'get_state'));
-
-		expect(crashed.writes).toEqual([]);
-		expect(restarted.writes).toHaveLength(1);
-		expect(restarted.writes[0]).toMatchObject({ type: 'get_state' });
-		expect(frames).toContainEqual({ kind: 'server_status', status: 'pi_restarted' });
-		expect(frames).toContainEqual({
-			kind: 'response',
-			id: 'restart',
-			command: 'restart_pi',
-			success: true
-		});
 	});
 
 	it('maps session rename and refreshes the shared session list only after success', async () => {

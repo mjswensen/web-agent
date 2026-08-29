@@ -28,13 +28,62 @@ export function MobileActionSheet() {
 		>
 			<div className="absolute right-3 bottom-3 left-3 rounded-xl border border-slate-200 bg-white p-3 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
 				<div className="grid grid-cols-2 gap-2 text-sm">
-					<Button variant="secondary" size="touch" className="text-slate-800" onClick={() => open('sessionDrawerOpen')}>Sessions</Button>
-					<Button variant="secondary" size="touch" className="text-slate-800" onClick={() => open('treeDrawerOpen')}>Tree</Button>
-					<Button variant="secondary" size="touch" className="text-slate-800" onClick={() => open('gitStatusDrawerOpen')}>Changes</Button>
-					<Button variant="secondary" size="touch" className="text-slate-800" onClick={() => open('modelDialogOpen')}>Model</Button>
-					<Button variant="secondary" size="touch" className="text-slate-800" onClick={() => open('thinkingDialogOpen')}>Thinking</Button>
-					<Button variant="secondary" size="touch" className="text-slate-800" onClick={() => open('compactDialogOpen')}>Compact</Button>
-					<Button variant="secondary" size="touch" className="text-slate-800" onClick={() => open('commandPaletteOpen')}>Commands</Button>
+					<Button
+						variant="secondary"
+						size="touch"
+						className="text-slate-800"
+						onClick={() => open('sessionDrawerOpen')}
+					>
+						Sessions
+					</Button>
+					<Button
+						variant="secondary"
+						size="touch"
+						className="text-slate-800"
+						onClick={() => open('treeDrawerOpen')}
+					>
+						Tree
+					</Button>
+					<Button
+						variant="secondary"
+						size="touch"
+						className="text-slate-800"
+						onClick={() => open('gitStatusDrawerOpen')}
+					>
+						Changes
+					</Button>
+					<Button
+						variant="secondary"
+						size="touch"
+						className="text-slate-800"
+						onClick={() => open('modelDialogOpen')}
+					>
+						Model
+					</Button>
+					<Button
+						variant="secondary"
+						size="touch"
+						className="text-slate-800"
+						onClick={() => open('thinkingDialogOpen')}
+					>
+						Thinking
+					</Button>
+					<Button
+						variant="secondary"
+						size="touch"
+						className="text-slate-800"
+						onClick={() => open('compactDialogOpen')}
+					>
+						Compact
+					</Button>
+					<Button
+						variant="secondary"
+						size="touch"
+						className="text-slate-800"
+						onClick={() => open('commandPaletteOpen')}
+					>
+						Commands
+					</Button>
 				</div>
 			</div>
 		</div>

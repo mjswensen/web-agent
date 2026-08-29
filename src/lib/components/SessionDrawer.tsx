@@ -65,7 +65,11 @@ export function SessionDrawer() {
 				title="Sessions"
 				description="Changing sessions affects every connected tab."
 				actions={
-					<Button variant="muted" size="sm" onClick={() => app.setLayout('sessionDrawerOpen', false)}>
+					<Button
+						variant="muted"
+						size="sm"
+						onClick={() => app.setLayout('sessionDrawerOpen', false)}
+					>
 						Close
 					</Button>
 				}
@@ -135,9 +139,7 @@ export function SessionDrawer() {
 				)}
 				{app.sessionList.map((session) => (
 					<button
-						key={
-							typeof session.path === 'string' ? session.path : JSON.stringify(session)
-						}
+						key={typeof session.path === 'string' ? session.path : JSON.stringify(session)}
 						type="button"
 						className={`mb-2 w-full rounded-lg border px-3 py-3 text-left focus:ring-2 focus:ring-blue-500 focus:outline-none ${session.path === app.sessionState?.sessionFile ? 'border-blue-300 bg-blue-50 dark:border-blue-700 dark:bg-blue-950' : 'border-slate-200 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800'}`}
 						onClick={() =>

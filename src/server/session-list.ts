@@ -1,3 +1,4 @@
+import { resolve } from 'node:path';
 import { SessionManager, type SessionInfo } from '@earendil-works/pi-coding-agent';
 import type { JsonValue } from '../lib/client/protocol.js';
 
@@ -29,13 +30,18 @@ function serializeSession(session: SessionInfo): JsonValue {
 	};
 }
 
-/** Lists persisted sessions without touching the Pi child process's live session. */
+/** Lists persisted launch-project sessions without touching the live SDK session. */
 export function createSessionListProvider(options: SessionListOptions): SessionListProvider {
 	const manager = options.manager ?? SessionManager;
 	return {
 		async list(): Promise<JsonValue> {
 			const sessions = await manager.list(options.cwd, options.sessionDir);
-			return { sessions: sessions.map(serializeSession) };
+			const launchCwd = options.cwd;
+			return {
+				sessions: sessions
+					.filter((session) => !session.cwd || resolve(session.cwd) === resolve(launchCwd))
+					.map(serializeSession)
+			};
 		}
 	};
 }

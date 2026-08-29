@@ -1,16 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { buildPiArguments, DEFAULT_HOST, DEFAULT_PORT, parseCliArgs } from './cli.js';
+import { DEFAULT_HOST, DEFAULT_PORT, parseCliArgs } from './cli.js';
 
 describe('Web Agent CLI parsing', () => {
-	it('uses loopback defaults', () => {
-		const options = parseCliArgs([], {});
-		expect(options).toEqual({
+	it('uses loopback and embedded-runtime defaults', () => {
+		expect(parseCliArgs([], {})).toEqual({
 			port: DEFAULT_PORT,
 			host: DEFAULT_HOST,
 			open: false,
-			piPath: undefined,
-			piArgs: [],
-			sessionDir: undefined
+			sdk: { continueSession: false, noSession: false }
 		});
 	});
 
@@ -19,45 +16,39 @@ describe('Web Agent CLI parsing', () => {
 		expect(parseCliArgs(['--port', '9876'], { PI_WEB_PORT: '4321' }).port).toBe(9876);
 	});
 
-	it('accepts any listen address', () => {
-		expect(parseCliArgs(['--bind', '0.0.0.0']).host).toBe('0.0.0.0');
-		expect(parseCliArgs(['--host', '192.168.1.10']).host).toBe('192.168.1.10');
-		expect(parseCliArgs(['--host', '::']).host).toBe('::');
-	});
-
-	it('forwards only documented Pi startup flags and always adds RPC mode', () => {
+	it('parses typed SDK startup options', () => {
 		const options = parseCliArgs([
 			'--open',
-			'--pi=/opt/pi',
 			'-c',
-			'--session',
-			'saved.jsonl',
 			'--session-dir=history',
+			'--provider',
+			'anthropic',
 			'--model',
 			'sonnet',
 			'--thinking',
-			'high'
+			'high',
+			'--api-key',
+			'test-key'
 		]);
-
 		expect(options.open).toBe(true);
-		expect(options.piPath).toBe('/opt/pi');
-		expect(options.sessionDir).toBe('history');
-		expect(buildPiArguments(options)).toEqual([
-			'--mode',
-			'rpc',
-			'--continue',
-			'--session',
-			'saved.jsonl',
-			'--session-dir',
-			'history',
-			'--model',
-			'sonnet',
-			'--thinking',
-			'high'
-		]);
+		expect(options.sdk).toEqual({
+			continueSession: true,
+			noSession: false,
+			sessionDir: 'history',
+			provider: 'anthropic',
+			model: 'sonnet',
+			thinking: 'high',
+			apiKey: 'test-key'
+		});
 	});
 
-	it('rejects malformed ports and unrecognized flags before launching a child', () => {
+	it('rejects removed subprocess flags and conflicting session targets', () => {
+		expect(() => parseCliArgs(['--pi', '/opt/pi'])).toThrow('removed');
+		expect(() => parseCliArgs(['--resume'])).toThrow('removed');
+		expect(() => parseCliArgs(['--continue', '--no-session'])).toThrow('mutually exclusive');
+	});
+
+	it('rejects malformed ports and unrecognized flags', () => {
 		expect(() => parseCliArgs(['--port', 'wat'])).toThrow('Invalid port');
 		expect(() => parseCliArgs(['--port', '65536'])).toThrow('Invalid port');
 		expect(() => parseCliArgs(['--unknown'])).toThrow('Unknown option');

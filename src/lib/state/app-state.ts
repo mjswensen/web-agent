@@ -8,7 +8,6 @@ import {
 import { deriveFooterValues, type FooterValues } from './footer.js';
 
 export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected';
-export type ExtensionDialogMethod = 'select' | 'confirm' | 'input' | 'editor';
 export type ToastType = 'info' | 'warning' | 'error';
 
 type Connection = {
@@ -64,36 +63,15 @@ export interface LayoutState {
 	mobileActionsOpen: boolean;
 }
 
-export interface ExtensionDialog {
-	id: string;
-	method: ExtensionDialogMethod;
-	title: string;
-	message?: string;
-	options?: string[];
-	placeholder?: string;
-	prefill?: string;
-	timeout?: number;
-}
-
-export interface ExtensionToast {
+export interface ToastNotification {
 	id: string;
 	message: string;
 	type: ToastType;
 	category?: 'connection';
 }
 
-export interface ExtensionWidget {
-	key: string;
-	lines: string[];
-	placement: 'aboveEditor' | 'belowEditor';
-}
-
-export interface ExtensionState {
-	dialogs: ExtensionDialog[];
-	toasts: ExtensionToast[];
-	statuses: Record<string, string>;
-	widgets: Record<string, ExtensionWidget>;
-	title?: string;
+export interface NotificationState {
+	toasts: ToastNotification[];
 }
 
 export interface GitDiffStream {
@@ -108,8 +86,8 @@ export interface CompactionState {
 	message?: string;
 }
 
-export interface PiAvailability {
-	available: boolean;
+export interface AgentAvailability {
+	status: 'ready' | 'unconfigured' | 'unavailable';
 	message?: string;
 }
 
@@ -128,26 +106,6 @@ function queueFrom(value: JsonValue): QueueState {
 	return {
 		steering: strings(queue?.steering),
 		followUp: strings(queue?.followUp)
-	};
-}
-
-function extensionDialog(frame: JsonObject): ExtensionDialog | undefined {
-	const method = frame.method;
-	if (
-		typeof frame.id !== 'string' ||
-		(method !== 'select' && method !== 'confirm' && method !== 'input' && method !== 'editor') ||
-		typeof frame.title !== 'string'
-	)
-		return undefined;
-	return {
-		id: frame.id,
-		method,
-		title: frame.title,
-		...(typeof frame.message === 'string' ? { message: frame.message } : {}),
-		...(Array.isArray(frame.options) ? { options: strings(frame.options) } : {}),
-		...(typeof frame.placeholder === 'string' ? { placeholder: frame.placeholder } : {}),
-		...(typeof frame.prefill === 'string' ? { prefill: frame.prefill } : {}),
-		...(typeof frame.timeout === 'number' ? { timeout: frame.timeout } : {})
 	};
 }
 
@@ -180,9 +138,9 @@ export class AppState {
 		gitStatusDrawerOpen: false,
 		mobileActionsOpen: false
 	};
-	extension: ExtensionState = { dialogs: [], toasts: [], statuses: {}, widgets: {} };
+	notifications: NotificationState = { toasts: [] };
 	compaction: CompactionState = { active: false };
-	pi: PiAvailability = { available: true };
+	agent: AgentAvailability = { status: 'ready' };
 	sessionTransition = false;
 	editorText = '';
 	lastEvent: JsonValue | undefined = undefined;
@@ -220,10 +178,6 @@ export class AppState {
 		return Array.isArray(data?.models)
 			? data.models.filter((model): model is JsonObject => asObject(model) !== undefined)
 			: [];
-	}
-
-	get activeDialog(): ExtensionDialog | undefined {
-		return this.extension.dialogs[0];
 	}
 
 	get sessionList(): JsonObject[] {
@@ -327,24 +281,16 @@ export class AppState {
 		this.notify();
 	}
 
-	get widgetsAboveEditor(): ExtensionWidget[] {
-		return Object.values(this.extension.widgets).filter(
-			(widget) => widget.placement === 'aboveEditor'
-		);
-	}
-
-	get widgetsBelowEditor(): ExtensionWidget[] {
-		return Object.values(this.extension.widgets).filter(
-			(widget) => widget.placement === 'belowEditor'
-		);
-	}
-
 	get isAgentActive(): boolean {
 		return this.conversation.isStreaming || this.sessionState?.isStreaming === true;
 	}
 
 	get canMutateSession(): boolean {
-		return this.connection.status === 'connected' && this.pi.available && !this.sessionTransition;
+		return (
+			this.connection.status === 'connected' &&
+			this.agent.status !== 'unavailable' &&
+			!this.sessionTransition
+		);
 	}
 
 	get activeSession(): JsonObject | undefined {
@@ -384,14 +330,12 @@ export class AppState {
 			...this.connection,
 			status,
 			statusMessage,
-			...(status === 'connected'
-				? { lastError: undefined, reconnectAttempt: 0 }
-				: {})
+			...(status === 'connected' ? { lastError: undefined, reconnectAttempt: 0 } : {})
 		};
 		if (status === 'connected') {
-			this.extension = {
-				...this.extension,
-				toasts: this.extension.toasts.filter((toast) => toast.category !== 'connection')
+			this.notifications = {
+				...this.notifications,
+				toasts: this.notifications.toasts.filter((toast) => toast.category !== 'connection')
 			};
 		}
 		this.notify();
@@ -404,10 +348,10 @@ export class AppState {
 
 	setConnectionError(error: string): void {
 		this.connection = { ...this.connection, status: 'disconnected', lastError: error };
-		this.extension = {
-			...this.extension,
+		this.notifications = {
+			...this.notifications,
 			toasts: [
-				...this.extension.toasts.filter((toast) => toast.category !== 'connection'),
+				...this.notifications.toasts.filter((toast) => toast.category !== 'connection'),
 				{
 					id: 'websocket-connection-error',
 					message: error,
@@ -420,10 +364,10 @@ export class AppState {
 	}
 
 	addToast(message: string, type: ToastType = 'info'): void {
-		this.extension = {
-			...this.extension,
+		this.notifications = {
+			...this.notifications,
 			toasts: [
-				...this.extension.toasts,
+				...this.notifications.toasts,
 				{ id: globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${message}`, message, type }
 			]
 		};
@@ -431,17 +375,9 @@ export class AppState {
 	}
 
 	dismissToast(id: string): void {
-		this.extension = {
-			...this.extension,
-			toasts: this.extension.toasts.filter((toast) => toast.id !== id)
-		};
-		this.notify();
-	}
-
-	removeDialog(id: string): void {
-		this.extension = {
-			...this.extension,
-			dialogs: this.extension.dialogs.filter((dialog) => dialog.id !== id)
+		this.notifications = {
+			...this.notifications,
+			toasts: this.notifications.toasts.filter((toast) => toast.id !== id)
 		};
 		this.notify();
 	}
@@ -469,7 +405,6 @@ export class AppState {
 			this.sessionTransition = true;
 			this.conversation = initialConversationState();
 			this.queue = { steering: [], followUp: [] };
-			this.extension = { ...this.extension, dialogs: [] };
 		}
 		if (event.type === 'compaction_start') {
 			this.compaction = { active: true, message: 'Compacting conversation…' };
@@ -479,72 +414,6 @@ export class AppState {
 				active: false,
 				message: event.aborted === true ? 'Compaction cancelled.' : 'Compaction finished.'
 			};
-		}
-	}
-
-	private applyExtensionRequest(frame: JsonObject): void {
-		switch (frame.method) {
-			case 'select':
-			case 'confirm':
-			case 'input':
-			case 'editor': {
-				const dialog = extensionDialog(frame);
-				if (dialog)
-					this.extension = {
-						...this.extension,
-						dialogs: [...this.extension.dialogs, dialog]
-					};
-				break;
-			}
-			case 'notify':
-				if (typeof frame.message === 'string') {
-					this.extension = {
-						...this.extension,
-						toasts: [
-							...this.extension.toasts,
-							{
-								id:
-									globalThis.crypto?.randomUUID?.() ??
-									`${Date.now()}-${frame.message}`,
-								message: frame.message,
-								type:
-									frame.notifyType === 'warning' || frame.notifyType === 'error'
-										? frame.notifyType
-										: 'info'
-							}
-						]
-					};
-				}
-				break;
-			case 'setStatus':
-				if (typeof frame.statusKey === 'string') {
-					const statuses = { ...this.extension.statuses };
-					if (typeof frame.statusText === 'string') statuses[frame.statusKey] = frame.statusText;
-					else delete statuses[frame.statusKey];
-					this.extension = { ...this.extension, statuses };
-				}
-				break;
-			case 'setWidget':
-				if (typeof frame.widgetKey === 'string') {
-					const widgets = { ...this.extension.widgets };
-					if (Array.isArray(frame.widgetLines)) {
-						widgets[frame.widgetKey] = {
-							key: frame.widgetKey,
-							lines: strings(frame.widgetLines),
-							placement:
-								frame.widgetPlacement === 'belowEditor' ? 'belowEditor' : 'aboveEditor'
-						};
-					} else delete widgets[frame.widgetKey];
-					this.extension = { ...this.extension, widgets };
-				}
-				break;
-			case 'setTitle':
-				if (typeof frame.title === 'string')
-					this.extension = { ...this.extension, title: frame.title };
-				break;
-			case 'set_editor_text':
-				if (typeof frame.text === 'string') this.editorText = frame.text;
-				break;
 		}
 	}
 
@@ -584,20 +453,22 @@ export class AppState {
 			this.notify();
 			return;
 		}
-		if (frame.kind === 'extension_ui_request') {
-			this.applyExtensionRequest(frame);
-			this.notify();
-			return;
-		}
 		if (frame.kind === 'server_status') {
 			this.connection = {
 				...this.connection,
 				statusMessage: frame.message ?? frame.status
 			};
-			if (frame.status === 'pi_unavailable') {
-				this.pi = { available: false, message: frame.message ?? 'Pi is unavailable.' };
-			}
-			if (frame.status === 'pi_restarted') this.pi = { available: true };
+			if (frame.status === 'agent_ready') this.agent = { status: 'ready' };
+			if (frame.status === 'agent_unconfigured')
+				this.agent = {
+					status: 'unconfigured',
+					message: frame.message ?? 'Configure provider credentials to send messages.'
+				};
+			if (frame.status === 'agent_unavailable')
+				this.agent = {
+					status: 'unavailable',
+					message: frame.message ?? 'The agent is unavailable. Restart Web Agent.'
+				};
 			this.notify();
 		}
 	}

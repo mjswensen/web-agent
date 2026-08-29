@@ -28,10 +28,22 @@ function statusClass(status: string): string {
 function badges(file: GitFileStatus): Badge[] {
 	return [
 		...(file.untracked
-			? [{ label: 'Untracked', className: 'border-emerald-300 bg-emerald-100 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-200' }]
+			? [
+					{
+						label: 'Untracked',
+						className:
+							'border-emerald-300 bg-emerald-100 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-200'
+					}
+				]
 			: []),
 		...(file.conflicted
-			? [{ label: 'Conflicted', className: 'border-violet-300 bg-violet-100 text-violet-800 dark:border-violet-800 dark:bg-violet-950 dark:text-violet-200' }]
+			? [
+					{
+						label: 'Conflicted',
+						className:
+							'border-violet-300 bg-violet-100 text-violet-800 dark:border-violet-800 dark:bg-violet-950 dark:text-violet-200'
+					}
+				]
 			: []),
 		...(file.indexStatus
 			? [{ label: `Staged ${file.indexStatus}`, className: statusClass(file.indexStatus) }]
@@ -40,7 +52,13 @@ function badges(file: GitFileStatus): Badge[] {
 			? [{ label: `Unstaged ${file.worktreeStatus}`, className: statusClass(file.worktreeStatus) }]
 			: []),
 		...(file.binary
-			? [{ label: 'Binary', className: 'border-slate-300 bg-slate-100 text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200' }]
+			? [
+					{
+						label: 'Binary',
+						className:
+							'border-slate-300 bg-slate-100 text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200'
+					}
+				]
 			: [])
 	];
 }
@@ -55,7 +73,8 @@ export function GitStatusDrawer() {
 		app.startGitDiff(token);
 		try {
 			const response = await client.sendCommand('get_git_diff', { token });
-			if (!response.success) app.failGitDiff(token, response.error ?? 'Unable to load the full diff.');
+			if (!response.success)
+				app.failGitDiff(token, response.error ?? 'Unable to load the full diff.');
 		} catch (error) {
 			app.failGitDiff(token, error instanceof Error ? error.message : String(error));
 		}
@@ -83,10 +102,19 @@ export function GitStatusDrawer() {
 				description="Read-only Git worktree snapshot."
 				actions={
 					<>
-						<Button variant="secondary" size="touch" disabled={refreshing} onClick={() => void refresh()}>
+						<Button
+							variant="secondary"
+							size="touch"
+							disabled={refreshing}
+							onClick={() => void refresh()}
+						>
 							{refreshing ? 'Refreshing…' : 'Refresh'}
 						</Button>
-						<Button variant="muted" size="sm" onClick={() => app.setLayout('gitStatusDrawerOpen', false)}>
+						<Button
+							variant="muted"
+							size="sm"
+							onClick={() => app.setLayout('gitStatusDrawerOpen', false)}
+						>
 							Close
 						</Button>
 					</>
@@ -130,37 +158,64 @@ export function GitStatusDrawer() {
 									const stagedFull = app.gitDiff(file.stagedDiffToken);
 									const unstagedFull = app.gitDiff(file.unstagedDiffToken);
 									return (
-										<article key={file.path} className="rounded border border-slate-200 p-3 dark:border-slate-700">
+										<article
+											key={file.path}
+											className="rounded border border-slate-200 p-3 dark:border-slate-700"
+										>
 											<div className="flex flex-wrap items-center gap-2">
 												<h3 className="text-sm font-semibold break-all">{file.path}</h3>
 												{badges(file).map((badge) => (
-													<span key={badge.label} className={`rounded border px-1.5 py-0.5 text-[10px] font-semibold ${badge.className}`}>
+													<span
+														key={badge.label}
+														className={`rounded border px-1.5 py-0.5 text-[10px] font-semibold ${badge.className}`}
+													>
 														{badge.label}
 													</span>
 												))}
 											</div>
 											{file.originalPath && (
-												<p className="mt-1 text-xs break-all text-slate-500">from {file.originalPath}</p>
+												<p className="mt-1 text-xs break-all text-slate-500">
+													from {file.originalPath}
+												</p>
 											)}
 											{(file.stagedDiff !== undefined || file.stagedDiffError || stagedFull) && (
 												<>
-													<h4 className="mt-3 text-xs font-bold tracking-wide text-slate-500 uppercase">Staged</h4>
+													<h4 className="mt-3 text-xs font-bold tracking-wide text-slate-500 uppercase">
+														Staged
+													</h4>
 													{stagedFull ? (
 														<DiffView diff={stagedFull.content} />
 													) : file.stagedDiff !== undefined ? (
 														<DiffView diff={file.stagedDiff} />
 													) : file.stagedDiffError ? (
-														<p className="mt-1 text-xs text-amber-700 dark:text-amber-300">{file.stagedDiffError}</p>
+														<p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+															{file.stagedDiffError}
+														</p>
 													) : null}
-													{stagedFull?.error && <p className="mt-1 text-xs text-rose-700 dark:text-rose-300">{stagedFull.error}</p>}
-													{file.stagedDiffTruncated && file.stagedDiffToken && !stagedFull?.complete && (
-														<Button variant="secondary" size="touch" className="mt-2" disabled={stagedFull?.loading} onClick={() => void loadFullDiff(file.stagedDiffToken!)}>
-															{stagedFull?.loading ? 'Loading full diff…' : 'Load full diff'}
-														</Button>
+													{stagedFull?.error && (
+														<p className="mt-1 text-xs text-rose-700 dark:text-rose-300">
+															{stagedFull.error}
+														</p>
 													)}
+													{file.stagedDiffTruncated &&
+														file.stagedDiffToken &&
+														!stagedFull?.complete && (
+															<Button
+																variant="secondary"
+																size="touch"
+																className="mt-2"
+																disabled={stagedFull?.loading}
+																onClick={() => void loadFullDiff(file.stagedDiffToken!)}
+															>
+																{stagedFull?.loading ? 'Loading full diff…' : 'Load full diff'}
+															</Button>
+														)}
 												</>
 											)}
-											{(file.unstagedDiff !== undefined || file.unstagedDiffError || file.untracked || unstagedFull) && (
+											{(file.unstagedDiff !== undefined ||
+												file.unstagedDiffError ||
+												file.untracked ||
+												unstagedFull) && (
 												<>
 													<h4 className="mt-3 text-xs font-bold tracking-wide text-slate-500 uppercase">
 														{file.untracked ? 'Untracked preview' : 'Unstaged'}
@@ -170,16 +225,32 @@ export function GitStatusDrawer() {
 													) : file.unstagedDiff !== undefined ? (
 														<DiffView diff={file.unstagedDiff} />
 													) : file.unstagedDiffError ? (
-														<p className="mt-1 text-xs text-amber-700 dark:text-amber-300">{file.unstagedDiffError}</p>
+														<p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+															{file.unstagedDiffError}
+														</p>
 													) : (
-														<p className="mt-1 text-xs text-amber-700 dark:text-amber-300">Preview has not been loaded.</p>
+														<p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+															Preview has not been loaded.
+														</p>
 													)}
-													{unstagedFull?.error && <p className="mt-1 text-xs text-rose-700 dark:text-rose-300">{unstagedFull.error}</p>}
-													{file.unstagedDiffTruncated && file.unstagedDiffToken && !unstagedFull?.complete && (
-														<Button variant="secondary" size="touch" className="mt-2" disabled={unstagedFull?.loading} onClick={() => void loadFullDiff(file.unstagedDiffToken!)}>
-															{unstagedFull?.loading ? 'Loading full diff…' : 'Load full diff'}
-														</Button>
+													{unstagedFull?.error && (
+														<p className="mt-1 text-xs text-rose-700 dark:text-rose-300">
+															{unstagedFull.error}
+														</p>
 													)}
+													{file.unstagedDiffTruncated &&
+														file.unstagedDiffToken &&
+														!unstagedFull?.complete && (
+															<Button
+																variant="secondary"
+																size="touch"
+																className="mt-2"
+																disabled={unstagedFull?.loading}
+																onClick={() => void loadFullDiff(file.unstagedDiffToken!)}
+															>
+																{unstagedFull?.loading ? 'Loading full diff…' : 'Load full diff'}
+															</Button>
+														)}
 												</>
 											)}
 										</article>

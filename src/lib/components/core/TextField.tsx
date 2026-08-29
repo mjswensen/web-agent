@@ -1,6 +1,6 @@
 import type { InputHTMLAttributes } from 'react';
 
-interface TextFieldProps extends InputHTMLAttributes<HTMLInputElement> {}
+type TextFieldProps = InputHTMLAttributes<HTMLInputElement>;
 
 export function TextField({ className = '', ...rest }: TextFieldProps) {
 	return (

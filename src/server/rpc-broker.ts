@@ -2,7 +2,6 @@ import type {
 	BrowserCommand,
 	ClientFrame,
 	CommandFrame,
-	DialogResponseFrame,
 	JsonObject,
 	JsonValue,
 	ResponseFrame,
@@ -11,7 +10,7 @@ import type {
 } from '../lib/client/protocol.js';
 import { projectDirectoryName } from '../lib/state/project.js';
 import { EventBatcher } from './event-batcher.js';
-import type { PiProcess } from './pi-process.js';
+import type { AgentTransport } from './agent-transport.js';
 import type { GitStatusProvider } from './git-status.js';
 import type { SessionListProvider } from './session-list.js';
 
@@ -24,16 +23,7 @@ export interface RpcBrokerOptions {
 	cwd?: string;
 	sessionList?: SessionListProvider;
 	gitStatus?: GitStatusProvider;
-	restartPi?: () => Promise<PiRpcTransport>;
-}
-
-export interface PiRpcTransport {
-	send(command: unknown): Promise<void>;
-	onRecord(listener: (record: unknown) => void): () => void;
-	onProtocolError(listener: (error: Error) => void): () => void;
-	onExit(
-		listener: (exit: { code: number | null; signal: string | number | null }) => void
-	): () => void;
+	agentStatus?: 'ready' | 'unconfigured';
 }
 
 interface PendingRequest {
@@ -75,8 +65,8 @@ function requiredBoolean(params: JsonObject, key: string): boolean {
 	return params[key];
 }
 
-/** Converts the public browser command names and parameter objects to Pi's RPC schema. */
-export function mapCommandToPi(frame: CommandFrame, id: string): JsonObject {
+/** Converts public browser commands to the agent adapter schema. */
+export function mapCommandToAgent(frame: CommandFrame, id: string): JsonObject {
 	const params = asObject(frame.params);
 	const command = frame.command;
 	const base: JsonObject = { id, type: command };
@@ -133,7 +123,7 @@ function stateWithCwd(value: unknown, cwd: string | undefined): JsonValue {
 	return cwd && isObject(state) ? { ...state, cwd, projectName: projectDirectoryName(cwd) } : state;
 }
 
-function isPiResponse(record: Record<string, unknown>): boolean {
+function isAgentResponse(record: Record<string, unknown>): boolean {
 	return (
 		record.type === 'response' &&
 		typeof record.id === 'string' &&
@@ -142,13 +132,12 @@ function isPiResponse(record: Record<string, unknown>): boolean {
 }
 
 function toJsonValue(value: unknown): JsonValue {
-	// Pi RPC values come from JSONL and are JSON-compatible. The fallback keeps
-	// the server resilient to a malformed third-party extension response.
+	// SDK values are JSON-compatible. Keep the server resilient to malformed records.
 	return value === undefined ? null : (value as JsonValue);
 }
 
 /**
- * Owns browser/Pi request correlation, broadcast fan-out, and reconnectable
+ * Owns browser/agent request correlation, broadcast fan-out, and reconnectable
  * snapshots. It contains no WebSocket implementation, so its protocol logic is
  * deterministic and unit-testable.
  */
@@ -159,37 +148,31 @@ export class RpcBroker {
 	private nextRequestNumber = 0;
 	private detach: Array<() => void> = [];
 	private readonly eventBatcher: EventBatcher;
-	private pi: PiRpcTransport;
+	private agent: AgentTransport;
 
 	constructor(
-		pi: PiRpcTransport | PiProcess,
+		agent: AgentTransport,
 		private readonly options: RpcBrokerOptions = {}
 	) {
-		this.pi = pi;
+		this.agent = agent;
 		this.eventBatcher = new EventBatcher((events) => {
 			if (events.length === 1) this.broadcast({ kind: 'event', event: events[0] });
 			else this.broadcast({ kind: 'events', events });
 		});
-		this.bindPi(pi);
+		this.bindAgent(agent);
 	}
 
-	private bindPi(pi: PiRpcTransport): void {
+	private bindAgent(agent: AgentTransport): void {
 		for (const unsubscribe of this.detach) unsubscribe();
-		this.pi = pi;
+		this.agent = agent;
 		this.detach = [
-			pi.onRecord((record) => this.handlePiRecord(record)),
-			pi.onProtocolError((error) => this.broadcastStatus('pi_unavailable', error.message)),
-			pi.onExit((exit) =>
-				this.broadcastStatus(
-					'pi_unavailable',
-					`Pi exited (code ${exit.code ?? 'none'}, signal ${exit.signal ?? 'none'}).`
-				)
-			)
+			agent.onRecord((record) => this.handleAgentRecord(record)),
+			agent.onError((error) => this.broadcastStatus('agent_unavailable', error.message))
 		];
 	}
 
 	announceStatus(
-		status: 'pi_starting' | 'pi_unavailable' | 'pi_restarted' | 'server_shutting_down',
+		status: 'agent_starting' | 'agent_unavailable' | 'agent_ready' | 'server_shutting_down',
 		message?: string
 	): void {
 		this.broadcast({ kind: 'server_status', status, ...(message ? { message } : {}) });
@@ -202,6 +185,18 @@ export class RpcBroker {
 		}
 		for (const [snapshotType, data] of this.snapshots) {
 			client.send({ kind: 'snapshot', snapshotType, data });
+		}
+		if (this.options.agentStatus) {
+			client.send({
+				kind: 'server_status',
+				status: this.options.agentStatus === 'unconfigured' ? 'agent_unconfigured' : 'agent_ready',
+				...(this.options.agentStatus === 'unconfigured'
+					? {
+							message:
+								'No authenticated model is configured. Add provider credentials and restart Web Agent.'
+						}
+					: {})
+			});
 		}
 		if (this.options.sessionList) void this.refreshSessionList();
 		return () => this.clients.delete(client.id);
@@ -220,10 +215,6 @@ export class RpcBroker {
 			this.send(clientId, { kind: 'pong', id: frame.id });
 			return;
 		}
-		if (frame.kind === 'dialog_response') {
-			await this.forwardDialogResponse(clientId, frame);
-			return;
-		}
 		if (frame.command === 'get_session_list') {
 			await this.handleSessionListRequest(clientId, frame);
 			return;
@@ -236,37 +227,7 @@ export class RpcBroker {
 			await this.handleGitDiffRequest(clientId, frame);
 			return;
 		}
-		if (frame.command === 'restart_pi') {
-			await this.handleRestartRequest(clientId, frame);
-			return;
-		}
 		await this.forwardCommand(clientId, frame);
-	}
-
-	private async handleRestartRequest(clientId: string, frame: CommandFrame): Promise<void> {
-		if (!this.options.restartPi) {
-			this.failure(clientId, frame.id, frame.command, new Error('Pi restart is not configured.'));
-			return;
-		}
-		try {
-			this.announceStatus('pi_starting', 'Restarting Pi…');
-			const pi = await this.options.restartPi();
-			this.bindPi(pi);
-			this.broadcast({ kind: 'server_status', status: 'pi_restarted' });
-			await this.refreshSessionList();
-			this.send(clientId, {
-				kind: 'response',
-				id: frame.id,
-				command: frame.command,
-				success: true
-			});
-		} catch (error) {
-			this.failure(clientId, frame.id, frame.command, error);
-			this.broadcastStatus(
-				'pi_unavailable',
-				error instanceof Error ? error.message : String(error)
-			);
-		}
 	}
 
 	private async handleSessionListRequest(clientId: string, frame: CommandFrame): Promise<void> {
@@ -361,7 +322,7 @@ export class RpcBroker {
 		const rpcId = `web-agent-${++this.nextRequestNumber}-${crypto.randomUUID()}`;
 		let command: JsonObject;
 		try {
-			command = mapCommandToPi(frame, rpcId);
+			command = mapCommandToAgent(frame, rpcId);
 		} catch (error) {
 			this.failure(clientId, frame.id, frame.command, error);
 			return;
@@ -373,57 +334,24 @@ export class RpcBroker {
 			browserCommand: frame.command
 		});
 		try {
-			await this.pi.send(command);
+			await this.agent.send(command);
 		} catch (error) {
 			this.pending.delete(rpcId);
 			this.failure(clientId, frame.id, frame.command, error);
 		}
 	}
 
-	private async forwardDialogResponse(clientId: string, frame: DialogResponseFrame): Promise<void> {
-		const command: JsonObject = { type: 'extension_ui_response', id: frame.id };
-		if (frame.cancelled) command.cancelled = true;
-		else if (frame.confirmed !== undefined) command.confirmed = frame.confirmed;
-		else if (frame.value !== undefined) command.value = frame.value;
-		else {
-			this.failure(
-				clientId,
-				frame.id,
-				'dialog_response',
-				new CommandValidationError(
-					'Dialog response requires a value, confirmation, or cancellation.'
-				)
-			);
-			return;
-		}
-
-		try {
-			await this.pi.send(command);
-		} catch (error) {
-			this.failure(clientId, frame.id, 'dialog_response', error);
-		}
-	}
-
-	private handlePiRecord(record: unknown): void {
+	private handleAgentRecord(record: unknown): void {
 		if (!isObject(record)) {
-			this.broadcastStatus('pi_unavailable', 'Pi emitted a non-object protocol record.');
+			this.broadcastStatus('agent_unavailable', 'Agent emitted a non-object protocol record.');
 			return;
 		}
-		if (isPiResponse(record)) {
-			this.handlePiResponse(record);
-			return;
-		}
-		if (record.type === 'extension_ui_request') {
-			this.eventBatcher.flush();
-			if (typeof record.id !== 'string' || typeof record.method !== 'string') {
-				this.broadcastStatus('pi_unavailable', 'Pi emitted an invalid extension UI request.');
-				return;
-			}
-			this.broadcast({ kind: 'extension_ui_request', ...(record as JsonObject) } as ServerFrame);
+		if (isAgentResponse(record)) {
+			this.handleAgentResponse(record);
 			return;
 		}
 		if (typeof record.type !== 'string') {
-			this.broadcastStatus('pi_unavailable', 'Pi emitted a protocol record without a type.');
+			this.broadcastStatus('agent_unavailable', 'Agent emitted a protocol record without a type.');
 			return;
 		}
 
@@ -432,7 +360,7 @@ export class RpcBroker {
 		this.eventBatcher.push(event);
 	}
 
-	private handlePiResponse(response: Record<string, unknown>): void {
+	private handleAgentResponse(response: Record<string, unknown>): void {
 		const request = this.pending.get(response.id as string);
 		if (!request) return;
 		this.pending.delete(response.id as string);
@@ -452,7 +380,8 @@ export class RpcBroker {
 			...(success && data !== undefined ? { data } : {}),
 			...(!success
 				? {
-						error: typeof response.error === 'string' ? response.error : 'Pi rejected the command.'
+						error:
+							typeof response.error === 'string' ? response.error : 'Agent rejected the command.'
 					}
 				: {})
 		};
@@ -465,7 +394,7 @@ export class RpcBroker {
 		if (success && shouldRefreshSessionList(request.browserCommand, response.data)) {
 			void this.refreshSessionList().catch((error: unknown) =>
 				this.broadcastStatus(
-					'pi_unavailable',
+					'agent_unavailable',
 					error instanceof Error ? error.message : String(error)
 				)
 			);
@@ -502,7 +431,7 @@ export class RpcBroker {
 		for (const client of this.clients.values()) client.send(frame);
 	}
 
-	private broadcastStatus(status: 'pi_unavailable', message: string): void {
+	private broadcastStatus(status: 'agent_unavailable', message: string): void {
 		this.eventBatcher.flush();
 		this.announceStatus(status, message);
 	}

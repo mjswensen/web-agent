@@ -1,13 +1,7 @@
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
 
 type ButtonVariant =
-	| 'primary'
-	| 'secondary'
-	| 'ghost'
-	| 'muted'
-	| 'danger'
-	| 'soft-blue'
-	| 'soft-red';
+	'primary' | 'secondary' | 'ghost' | 'muted' | 'danger' | 'soft-blue' | 'soft-red';
 type ButtonSize = 'sm' | 'md' | 'touch' | 'toolbar' | 'icon' | 'tool';
 
 const sizeClasses: Record<ButtonSize, string> = {
@@ -24,8 +18,10 @@ const variantClasses: Record<ButtonVariant, string> = {
 		'bg-blue-600 px-4 text-sm font-bold text-white shadow-[2px_2px_0_var(--color-blue-900)] transition-colors hover:bg-blue-700 active:bg-blue-800 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500 disabled:shadow-none dark:disabled:bg-slate-700 dark:disabled:text-slate-400',
 	secondary:
 		'border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 transition-colors hover:border-slate-400 hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800',
-	ghost: 'text-slate-600 transition-colors hover:bg-slate-200 hover:text-slate-950 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white',
-	muted: 'font-semibold text-slate-600 transition-colors hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-slate-500 focus-visible:outline-none dark:text-slate-300 dark:hover:bg-slate-800',
+	ghost:
+		'text-slate-600 transition-colors hover:bg-slate-200 hover:text-slate-950 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white',
+	muted:
+		'font-semibold text-slate-600 transition-colors hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-slate-500 focus-visible:outline-none dark:text-slate-300 dark:hover:bg-slate-800',
 	danger:
 		'bg-red-700 px-4 text-sm font-bold text-white transition-colors hover:bg-red-800 focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:bg-red-300 dark:disabled:bg-red-950 dark:disabled:text-red-400',
 	'soft-blue':

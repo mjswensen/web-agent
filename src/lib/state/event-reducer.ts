@@ -239,11 +239,6 @@ export function reduceConversationEvent(
 			};
 			return { ...state, tools: upsert(state.tools, tool) };
 		}
-		case 'extension_error':
-			return {
-				...state,
-				lastError: typeof event.error === 'string' ? event.error : 'An extension failed.'
-			};
 		default:
 			return state;
 	}
