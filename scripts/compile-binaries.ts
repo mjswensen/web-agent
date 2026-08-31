@@ -10,6 +10,7 @@ if (!(await Bun.file(entrypoint).exists())) {
 
 const binaries = [
 	{ target: 'bun-linux-x64', outfile: 'web-agent-linux-x64' },
+	{ target: 'bun-linux-arm64', outfile: 'web-agent-linux-arm64' },
 	{ target: 'bun-darwin-arm64', outfile: 'web-agent-darwin-arm64' }
 ] as const;
 

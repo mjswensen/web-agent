@@ -13,7 +13,7 @@ curl -fsSL https://raw.githubusercontent.com/mjswensen/web-agent/main/install.sh
 web-agent
 ```
 
-Required standalone targets are Linux x64 and macOS arm64. A standalone binary is one file and requires no Pi, Node.js, Bun, `node_modules`, or adjacent browser assets. Provider credentials and network access are still required for model calls. An operating-system shell is required by shell tools; Git is optional and used only by Git-specific features.
+Required standalone targets are Linux x64, Linux arm64, and macOS arm64. A standalone binary is one file and requires no Pi, Node.js, Bun, `node_modules`, or adjacent browser assets. Provider credentials and network access are still required for model calls. An operating-system shell is required by shell tools; Git is optional and used only by Git-specific features.
 
 The Bun/npm package remains supported and requires Bun 1.3.14 or newer:
 
@@ -65,7 +65,7 @@ bun run build
 bun start
 ```
 
-Compile both supported standalone binaries into `dist/` with:
+Compile all supported standalone binaries into `dist/` with:
 
 ```sh
 bun run build:binaries

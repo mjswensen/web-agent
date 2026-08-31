@@ -59,5 +59,6 @@ jobs:
             Standalone binaries require no Pi, Node.js, Bun, node_modules, or adjacent web assets.
           files: |
             dist/web-agent-linux-x64
+            dist/web-agent-linux-arm64
             dist/web-agent-darwin-arm64
             dist/install.sh

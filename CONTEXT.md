@@ -45,7 +45,7 @@ Availability has three states: `ready`, `unconfigured` (runtime works but no aut
 2. runs `scripts/embed-client.ts` to encode every client output into a generated TypeScript manifest;
 3. emits server ESM and package metadata.
 
-Release compilation uses Bun's `--compile` against `build/server/server/entry.js`. Required standalone targets are Linux x64 and macOS arm64. The executable needs no Pi, Node.js, Bun, `node_modules`, or adjacent assets. Provider network/credentials remain intrinsic; an OS shell is required for shell tools and Git is optional for Git features.
+Release compilation uses Bun's `--compile` against `build/server/server/entry.js`. Required standalone targets are Linux x64, Linux arm64, and macOS arm64. The executable needs no Pi, Node.js, Bun, `node_modules`, or adjacent assets. Provider network/credentials remain intrinsic; an OS shell is required for shell tools and Git is optional for Git features.
 
 ## CLI
 
