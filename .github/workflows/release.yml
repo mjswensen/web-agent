@@ -54,9 +54,6 @@ jobs:
           name: v${{ steps.package_version.outputs.version }}
           target_commitish: ${{ github.sha }}
           make_latest: true
-          body: |
-            Web Agent `${{ steps.package_version.outputs.version }}` embeds the Pi SDK and client assets.
-            Standalone binaries require no Pi, Node.js, Bun, node_modules, or adjacent web assets.
           files: |
             dist/web-agent-linux-x64
             dist/web-agent-linux-arm64
