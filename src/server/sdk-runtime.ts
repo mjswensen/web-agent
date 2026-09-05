@@ -15,8 +15,13 @@ import {
 	type CreateAgentSessionRuntimeFactory
 } from '@earendil-works/pi-coding-agent';
 import type { ThinkingLevel } from '@earendil-works/pi-agent-core';
+import { registerBunOAuthFlows } from '@earendil-works/pi-ai/bun-oauth';
 import type { SdkStartupOptions } from './cli.js';
 import { createSessionListProvider, type SessionListProvider } from './session-list.js';
+
+// The SDK's OAuth loaders use bundler-opaque dynamic imports in normal installations. Register
+// static loaders so Bun embeds the implementations in the standalone executable.
+registerBunOAuthFlows();
 
 export type AgentAvailability = 'ready' | 'unconfigured' | 'unavailable';
 
