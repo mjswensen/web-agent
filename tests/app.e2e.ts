@@ -19,6 +19,8 @@ const fakeSocket = () => {
 			thinkingLevelMap: { off: 'off', low: 'low', high: 'high' }
 		};
 		thinking = 'low';
+		authFlowId = 'fake-auth-flow';
+		authConfigured = false;
 
 		constructor() {
 			super();
@@ -137,6 +139,58 @@ const fakeSocket = () => {
 						}
 					});
 					respond({});
+					break;
+				case 'get_auth_providers':
+					this.emit({
+						kind: 'snapshot',
+						snapshotType: 'auth_providers',
+						data: {
+							enabled: true,
+							providers: [
+								{
+									id: 'test',
+									name: 'Test Provider',
+									configured: this.authConfigured,
+									stored: this.authConfigured,
+									methods: [
+										{
+											type: 'api_key',
+											name: 'Test API key',
+											label: 'Add API key',
+											interactive: true
+										}
+									]
+								}
+							]
+						}
+					});
+					respond({});
+					break;
+				case 'start_auth':
+					respond({ flowId: this.authFlowId });
+					this.emit({
+						kind: 'auth',
+						flowId: this.authFlowId,
+						event: {
+							type: 'prompt',
+							promptId: 'key-prompt',
+							promptType: 'secret',
+							message: 'Enter Test API key'
+						}
+					});
+					break;
+				case 'submit_auth_prompt':
+					this.authConfigured = true;
+					respond();
+					this.emit({
+						kind: 'auth',
+						flowId: this.authFlowId,
+						event: { type: 'complete', message: 'Saved credentials for Test Provider.' }
+					});
+					break;
+				case 'logout_provider':
+					this.authConfigured = false;
+					respond();
 					break;
 				case 'get_available_models':
 					this.emit({
@@ -386,6 +440,24 @@ test('opens Changes with staged, unstaged, and untracked Git previews', async ({
 	await page.getByRole('button', { name: 'Menu' }).click();
 	await page.getByRole('button', { name: 'Changes' }).last().click();
 	await expect(page.getByRole('dialog', { name: 'Changes' })).toBeVisible();
+});
+
+test('completes a provider-owned API-key prompt without exposing the secret', async ({ page }) => {
+	await page.goto('/');
+	await page.getByRole('button', { name: 'Providers', exact: true }).click();
+	await expect(page.getByRole('heading', { name: 'Test Provider' })).toBeVisible();
+	await page.getByRole('button', { name: 'Add API key' }).click();
+	const secret = page.getByLabel('Enter Test API key');
+	await expect(secret).toHaveAttribute('type', 'password');
+	await secret.fill('fake-browser-secret');
+	await page.getByRole('button', { name: 'Continue' }).click();
+	await expect(page.getByText('Saved credentials for Test Provider.')).toBeVisible();
+	await expect(page.getByText('fake-browser-secret')).toHaveCount(0);
+	await expect(page.getByRole('button', { name: 'Select model' })).toBeVisible();
+	await page.getByRole('button', { name: 'Back to providers' }).click();
+	await page.getByRole('button', { name: 'Refresh' }).click();
+	await page.getByRole('button', { name: 'Remove saved credential' }).click();
+	await expect(page.getByText('Removed the stored credential.')).toBeVisible();
 });
 
 test('opens model, thinking, session, and mobile session controls', async ({ page }) => {

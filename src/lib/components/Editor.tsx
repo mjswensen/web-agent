@@ -91,8 +91,10 @@ export function Editor() {
 					<p className="text-xs text-red-700">
 						{app.agent.message ??
 							(app.agent.status === 'unconfigured'
-								? 'Configure provider credentials in ~/.pi/agent/auth.json or an environment variable, then restart Web Agent.'
-								: 'The agent is unavailable. Restart Web Agent.')}
+								? 'Set up a provider to send messages.'
+								: app.agent.status === 'model_required'
+									? 'Select an authenticated model to send messages.'
+									: 'The agent is unavailable. Restart Web Agent.')}
 					</p>
 				) : app.connection.status !== 'connected' ? (
 					<p className="text-xs text-amber-700">

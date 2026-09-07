@@ -18,7 +18,8 @@ const bootstrapCommands: BrowserCommand[] = [
 	'get_messages',
 	'get_commands',
 	'get_session_stats',
-	'get_session_list'
+	'get_session_list',
+	'get_auth_providers'
 ];
 
 function frameEvents(frame: ServerFrame): JsonObject[] {

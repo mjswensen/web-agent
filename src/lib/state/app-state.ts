@@ -55,6 +55,7 @@ export interface LayoutState {
 	queueOpen: boolean;
 	commandPaletteOpen: boolean;
 	modelDialogOpen: boolean;
+	providerDialogOpen: boolean;
 	thinkingDialogOpen: boolean;
 	compactDialogOpen: boolean;
 	sessionDrawerOpen: boolean;
@@ -87,7 +88,15 @@ export interface CompactionState {
 }
 
 export interface AgentAvailability {
-	status: 'ready' | 'unconfigured' | 'unavailable';
+	status: 'ready' | 'unconfigured' | 'model_required' | 'unavailable';
+	message?: string;
+}
+
+export interface AuthFlowState {
+	id: string;
+	status: 'active' | 'complete' | 'failed' | 'cancelled';
+	prompt?: JsonObject;
+	notices: JsonObject[];
 	message?: string;
 }
 
@@ -131,6 +140,7 @@ export class AppState {
 		queueOpen: false,
 		commandPaletteOpen: false,
 		modelDialogOpen: false,
+		providerDialogOpen: false,
 		thinkingDialogOpen: false,
 		compactDialogOpen: false,
 		sessionDrawerOpen: false,
@@ -141,6 +151,7 @@ export class AppState {
 	notifications: NotificationState = { toasts: [] };
 	compaction: CompactionState = { active: false };
 	agent: AgentAvailability = { status: 'ready' };
+	authFlow: AuthFlowState | undefined;
 	sessionTransition = false;
 	editorText = '';
 	lastEvent: JsonValue | undefined = undefined;
@@ -178,6 +189,24 @@ export class AppState {
 		return Array.isArray(data?.models)
 			? data.models.filter((model): model is JsonObject => asObject(model) !== undefined)
 			: [];
+	}
+
+	get authProviders(): JsonObject[] {
+		const data = asObject(this.snapshots.auth_providers);
+		return Array.isArray(data?.providers)
+			? data.providers.filter(
+					(provider): provider is JsonObject => asObject(provider) !== undefined
+				)
+			: [];
+	}
+
+	get webAuthEnabled(): boolean {
+		return asObject(this.snapshots.auth_providers)?.enabled !== false;
+	}
+
+	get webAuthDisabledReason(): string | undefined {
+		const reason = asObject(this.snapshots.auth_providers)?.disabledReason;
+		return typeof reason === 'string' ? reason : undefined;
 	}
 
 	get sessionList(): JsonObject[] {
@@ -392,6 +421,41 @@ export class AppState {
 		this.notify();
 	}
 
+	beginAuthFlow(id: string): void {
+		if (this.authFlow?.id === id) return;
+		this.authFlow = { id, status: 'active', notices: [] };
+		this.notify();
+	}
+
+	clearAuthFlow(): void {
+		this.authFlow = undefined;
+		this.notify();
+	}
+
+	private applyAuthEvent(flowId: string, event: JsonObject): void {
+		const flow =
+			this.authFlow?.id === flowId
+				? this.authFlow
+				: { id: flowId, status: 'active' as const, notices: [] };
+		if (event.type === 'prompt') {
+			this.authFlow = { ...flow, status: 'active', prompt: event };
+			return;
+		}
+		if (event.type === 'complete' || event.type === 'failed' || event.type === 'cancelled') {
+			this.authFlow = {
+				...flow,
+				status: event.type,
+				prompt: undefined,
+				message: typeof event.message === 'string' ? event.message : undefined
+			};
+			return;
+		}
+		const notices = [...flow.notices.filter((notice) => notice.type !== 'progress'), event].slice(
+			-20
+		);
+		this.authFlow = { ...flow, notices };
+	}
+
 	toggleQueue(): void {
 		this.layout = { ...this.layout, queueOpen: !this.layout.queueOpen };
 		this.notify();
@@ -425,6 +489,11 @@ export class AppState {
 				this.sessionTransition = false;
 			}
 			if (frame.snapshotType === 'queue') this.queue = queueFrom(frame.data);
+			this.notify();
+			return;
+		}
+		if (frame.kind === 'auth') {
+			this.applyAuthEvent(frame.flowId, frame.event);
 			this.notify();
 			return;
 		}
@@ -463,6 +532,11 @@ export class AppState {
 				this.agent = {
 					status: 'unconfigured',
 					message: frame.message ?? 'Configure provider credentials to send messages.'
+				};
+			if (frame.status === 'agent_model_required')
+				this.agent = {
+					status: 'model_required',
+					message: frame.message ?? 'Select an authenticated model to send messages.'
 				};
 			if (frame.status === 'agent_unavailable')
 				this.agent = {

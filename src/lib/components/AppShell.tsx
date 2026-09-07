@@ -10,6 +10,7 @@ import { Footer } from './Footer';
 import { GitStatusDrawer } from './GitStatusDrawer';
 import { MobileActionSheet } from './MobileActionSheet';
 import { ModelDialog } from './ModelDialog';
+import { ProviderDialog } from './ProviderDialog';
 import { QueuePanel } from './QueuePanel';
 import { RecoveryPanel } from './RecoveryPanel';
 import { SessionDrawer } from './SessionDrawer';
@@ -32,7 +33,9 @@ export function AppShell() {
 			: app.agent.status !== 'ready'
 				? app.agent.status === 'unconfigured'
 					? 'Setup required'
-					: 'Agent unavailable'
+					: app.agent.status === 'model_required'
+						? 'Model required'
+						: 'Agent unavailable'
 				: app.isAgentActive
 					? 'Agent working'
 					: 'Ready';
@@ -44,6 +47,11 @@ export function AppShell() {
 				: app.isAgentActive
 					? 'text-amber-600 dark:text-amber-400'
 					: 'text-emerald-600 dark:text-emerald-400';
+
+	function openProviders() {
+		app.setLayout('providerDialogOpen', true);
+		void client?.sendCommand('get_auth_providers');
+	}
 
 	function openModelDialog() {
 		app.setLayout('modelDialogOpen', true);
@@ -74,6 +82,7 @@ export function AppShell() {
 			'compactDialogOpen',
 			'thinkingDialogOpen',
 			'modelDialogOpen',
+			'providerDialogOpen',
 			'commandPaletteOpen'
 		];
 		const top = overlays.find((key) => app.layout[key] === true);
@@ -170,6 +179,14 @@ export function AppShell() {
 							>
 								Commands
 							</Button>
+							<Button
+								size="toolbar"
+								variant="ghost"
+								className="hidden xl:block"
+								onClick={openProviders}
+							>
+								Providers
+							</Button>
 							<Button size="toolbar" variant="ghost" onClick={openModelDialog}>
 								Model
 							</Button>
@@ -200,6 +217,7 @@ export function AppShell() {
 
 			<CommandPalette />
 			<ModelDialog />
+			<ProviderDialog />
 			<ThinkingDialog />
 			<CompactDialog />
 			<ToastHost />

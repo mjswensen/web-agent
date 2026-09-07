@@ -1,3 +1,4 @@
+import { AuthController } from './auth-controller.js';
 import { DefaultGitStatusProvider } from './git-status.js';
 import { RpcBroker } from './rpc-broker.js';
 import { createSdkRuntime, type SdkRuntimeOwner } from './sdk-runtime.js';
@@ -13,16 +14,29 @@ export interface WebAgentRuntime {
 }
 
 /** Composes one embedded SDK runtime, one broker, and Bun's `/ws` handler. */
+export interface WebAgentRuntimeOptions {
+	webAuthEnabled?: boolean;
+	webAuthDisabledReason?: string;
+}
+
 export async function createWebAgentRuntime(
 	startup: SdkStartupOptions,
-	cwd = process.cwd()
+	cwd = process.cwd(),
+	options: WebAgentRuntimeOptions = {}
 ): Promise<WebAgentRuntime> {
 	const sdk = await createSdkRuntime(startup, cwd);
 	const transport = new SdkTransport(sdk.runtime);
+	const auth = new AuthController(
+		sdk.modelRuntime,
+		() => sdk.runtime.session,
+		options.webAuthEnabled ?? true,
+		options.webAuthDisabledReason
+	);
 	const broker = new RpcBroker(transport, {
 		cwd: sdk.launchCwd,
 		sessionList: sdk.sessionList,
 		gitStatus: new DefaultGitStatusProvider({ cwd: sdk.launchCwd }),
+		auth,
 		agentStatus: sdk.availability === 'unconfigured' ? 'unconfigured' : 'ready'
 	});
 	const webSockets = createBunWebSocketHub(broker);

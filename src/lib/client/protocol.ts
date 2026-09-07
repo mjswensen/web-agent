@@ -31,7 +31,12 @@ export const browserCommands = [
 	'get_session_stats',
 	'get_session_list',
 	'get_git_status',
-	'get_git_diff'
+	'get_git_diff',
+	'get_auth_providers',
+	'start_auth',
+	'submit_auth_prompt',
+	'cancel_auth',
+	'logout_provider'
 ] as const;
 
 export type BrowserCommand = (typeof browserCommands)[number];
@@ -83,12 +88,19 @@ export interface GitDiffChunkFrame {
 	error?: string;
 }
 
+export interface AuthFrame {
+	kind: 'auth';
+	flowId: string;
+	event: JsonObject;
+}
+
 export interface ServerStatusFrame {
 	kind: 'server_status';
 	status:
 		| 'agent_starting'
 		| 'agent_ready'
 		| 'agent_unconfigured'
+		| 'agent_model_required'
 		| 'agent_unavailable'
 		| 'server_shutting_down';
 	message?: string;
@@ -105,6 +117,7 @@ export type ServerFrame =
 	| EventsFrame
 	| SnapshotFrame
 	| GitDiffChunkFrame
+	| AuthFrame
 	| ServerStatusFrame
 	| PongFrame;
 

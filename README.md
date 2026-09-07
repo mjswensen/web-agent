@@ -30,6 +30,10 @@ Web Agent continues to use Pi's existing `~/.pi/agent/` files, including `auth.j
 
 Direct user/project context files, skills, and prompt templates are loaded subject to saved project trust. Untrusted project resources are ignored with a startup diagnostic. External extensions, extension UI, themes, Pi package resources, package installation/update, image input, telemetry, update checks, and automatic model-catalog refreshes are intentionally unsupported. `PI_OFFLINE` remains honored.
 
+The Providers dialog supports Pi's provider-owned API-key and OAuth setup flows. Credentials entered there are persisted through Pi's normal `~/.pi/agent/auth.json` storage and are also available to the Pi CLI. Removing a saved credential does not remove environment variables, AWS profiles, Google application-default credentials, or other ambient authentication, so a provider may remain configured after logout. Authentication updates available models without requiring a Web Agent restart.
+
+Browser credential entry is enabled by default only on loopback listeners. Use `--allow-web-auth` to opt in when binding to another interface, and only do so over a trusted connection: Web Agent does not provide TLS, so plain HTTP/WebSocket traffic is unencrypted. OAuth providers that redirect to a loopback callback may not work when the browser and Web Agent run on different machines; device-code and manual-code flows do not have that limitation.
+
 ## CLI reference
 
 | Option                                  | Description                                               |
@@ -37,6 +41,7 @@ Direct user/project context files, skills, and prompt templates are loaded subje
 | `--port <number>`                       | Requested port; defaults to `PI_WEB_PORT` or `3000`.      |
 | `--host <address>` / `--bind <address>` | Listen address; defaults to `127.0.0.1`.                  |
 | `--open`                                | Open the final URL.                                       |
+| `--allow-web-auth`                      | Allow credential entry beyond loopback (unencrypted).     |
 | `--continue`, `-c`                      | Continue the latest launch-project session.               |
 | `--session <path-or-id>`                | Open a session belonging to the launch project.           |
 | `--no-session`                          | Disable session persistence.                              |
@@ -53,7 +58,7 @@ Web Agent 2.0 removed `--pi`, `PI_BIN`, `--resume`, and `-r` because no external
 
 - **Send** submits while idle; during active work it becomes **Steer**. Command+Enter invokes it on macOS.
 - **Follow-up** queues a message after the current run settles; **Abort** stops active work.
-- Header controls expose commands, models, thinking, compaction, launch-project sessions, the read-only tree, and Git Changes.
+- Header controls expose commands, providers, models, thinking, compaction, launch-project sessions, the read-only tree, and Git Changes.
 - All connected tabs share the runtime, active session, conversation, queue, snapshots, and transitions.
 - Session new/switch/fork/clone operations are serialized to prevent cross-tab races.
 

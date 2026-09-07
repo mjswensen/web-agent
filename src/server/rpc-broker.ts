@@ -11,6 +11,7 @@ import type {
 import { projectDirectoryName } from '../lib/state/project.js';
 import { EventBatcher } from './event-batcher.js';
 import type { AgentTransport } from './agent-transport.js';
+import type { AuthController, AuthUpdate } from './auth-controller.js';
 import type { GitStatusProvider } from './git-status.js';
 import type { SessionListProvider } from './session-list.js';
 
@@ -23,7 +24,8 @@ export interface RpcBrokerOptions {
 	cwd?: string;
 	sessionList?: SessionListProvider;
 	gitStatus?: GitStatusProvider;
-	agentStatus?: 'ready' | 'unconfigured';
+	agentStatus?: 'ready' | 'unconfigured' | 'model_required';
+	auth?: AuthController;
 }
 
 interface PendingRequest {
@@ -71,7 +73,15 @@ export function mapCommandToAgent(frame: CommandFrame, id: string): JsonObject {
 	const command = frame.command;
 	const base: JsonObject = { id, type: command };
 
-	if (command === 'get_git_status' || command === 'get_git_diff') {
+	if (
+		command === 'get_git_status' ||
+		command === 'get_git_diff' ||
+		command === 'get_auth_providers' ||
+		command === 'start_auth' ||
+		command === 'submit_auth_prompt' ||
+		command === 'cancel_auth' ||
+		command === 'logout_provider'
+	) {
 		throw new CommandValidationError(`${command} is handled by the Web Agent server.`);
 	}
 
@@ -149,17 +159,21 @@ export class RpcBroker {
 	private detach: Array<() => void> = [];
 	private readonly eventBatcher: EventBatcher;
 	private agent: AgentTransport;
+	private agentStatus: 'ready' | 'unconfigured' | 'model_required' | undefined;
 
 	constructor(
 		agent: AgentTransport,
 		private readonly options: RpcBrokerOptions = {}
 	) {
 		this.agent = agent;
+		this.agentStatus = options.agentStatus;
 		this.eventBatcher = new EventBatcher((events) => {
 			if (events.length === 1) this.broadcast({ kind: 'event', event: events[0] });
 			else this.broadcast({ kind: 'events', events });
 		});
 		this.bindAgent(agent);
+		if (options.auth)
+			this.detach.push(options.auth.subscribe((update) => this.applyAuthUpdate(update)));
 	}
 
 	private bindAgent(agent: AgentTransport): void {
@@ -172,7 +186,13 @@ export class RpcBroker {
 	}
 
 	announceStatus(
-		status: 'agent_starting' | 'agent_unavailable' | 'agent_ready' | 'server_shutting_down',
+		status:
+			| 'agent_starting'
+			| 'agent_unavailable'
+			| 'agent_unconfigured'
+			| 'agent_model_required'
+			| 'agent_ready'
+			| 'server_shutting_down',
 		message?: string
 	): void {
 		this.broadcast({ kind: 'server_status', status, ...(message ? { message } : {}) });
@@ -186,25 +206,34 @@ export class RpcBroker {
 		for (const [snapshotType, data] of this.snapshots) {
 			client.send({ kind: 'snapshot', snapshotType, data });
 		}
-		if (this.options.agentStatus) {
+		if (this.agentStatus) {
+			const status =
+				this.agentStatus === 'unconfigured'
+					? 'agent_unconfigured'
+					: this.agentStatus === 'model_required'
+						? 'agent_model_required'
+						: 'agent_ready';
 			client.send({
 				kind: 'server_status',
-				status: this.options.agentStatus === 'unconfigured' ? 'agent_unconfigured' : 'agent_ready',
-				...(this.options.agentStatus === 'unconfigured'
-					? {
-							message:
-								'No authenticated model is configured. Add provider credentials and restart Web Agent.'
-						}
-					: {})
+				status,
+				...(status === 'agent_unconfigured'
+					? { message: 'No authenticated model is configured. Set up a provider to continue.' }
+					: status === 'agent_model_required'
+						? { message: 'Select an authenticated model to continue.' }
+						: {})
 			});
 		}
 		if (this.options.sessionList) void this.refreshSessionList();
-		return () => this.clients.delete(client.id);
+		return () => {
+			this.options.auth?.disconnect(client.id);
+			this.clients.delete(client.id);
+		};
 	}
 
 	dispose(): void {
 		for (const unsubscribe of this.detach) unsubscribe();
 		this.eventBatcher.dispose();
+		this.options.auth?.dispose();
 		this.clients.clear();
 		this.pending.clear();
 	}
@@ -225,6 +254,16 @@ export class RpcBroker {
 		}
 		if (frame.command === 'get_git_diff') {
 			await this.handleGitDiffRequest(clientId, frame);
+			return;
+		}
+		if (
+			frame.command === 'get_auth_providers' ||
+			frame.command === 'start_auth' ||
+			frame.command === 'submit_auth_prompt' ||
+			frame.command === 'cancel_auth' ||
+			frame.command === 'logout_provider'
+		) {
+			await this.handleAuthRequest(clientId, frame);
 			return;
 		}
 		await this.forwardCommand(clientId, frame);
@@ -318,6 +357,85 @@ export class RpcBroker {
 			);
 	}
 
+	private async handleAuthRequest(clientId: string, frame: CommandFrame): Promise<void> {
+		const auth = this.options.auth;
+		if (!auth) {
+			this.failure(
+				clientId,
+				frame.id,
+				frame.command,
+				new Error('Provider authentication is unavailable.')
+			);
+			return;
+		}
+		try {
+			if (frame.command === 'get_auth_providers') {
+				const snapshot = await auth.snapshot();
+				const data = snapshot as unknown as JsonValue;
+				this.storeSnapshot('auth_providers', data);
+				this.send(clientId, {
+					kind: 'response',
+					id: frame.id,
+					command: frame.command,
+					success: true,
+					data
+				});
+				return;
+			}
+			if (frame.command === 'start_auth') {
+				const providerId = requiredString(frame.params, 'providerId');
+				const authType = requiredString(frame.params, 'authType');
+				if (authType !== 'api_key' && authType !== 'oauth')
+					throw new CommandValidationError('authType must be api_key or oauth.');
+				const flowId = auth.start(clientId, providerId, authType, (id, event) =>
+					this.send(clientId, { kind: 'auth', flowId: id, event })
+				);
+				this.send(clientId, {
+					kind: 'response',
+					id: frame.id,
+					command: frame.command,
+					success: true,
+					data: { flowId }
+				});
+				return;
+			}
+			if (frame.command === 'submit_auth_prompt') {
+				auth.submit(
+					clientId,
+					requiredString(frame.params, 'flowId'),
+					requiredString(frame.params, 'promptId'),
+					requiredString(frame.params, 'value')
+				);
+			} else if (frame.command === 'cancel_auth') {
+				auth.cancel(clientId, requiredString(frame.params, 'flowId'));
+			} else {
+				await auth.logout(requiredString(frame.params, 'providerId'));
+			}
+			this.send(clientId, {
+				kind: 'response',
+				id: frame.id,
+				command: frame.command,
+				success: true
+			});
+		} catch (error) {
+			this.failure(clientId, frame.id, frame.command, error);
+		}
+	}
+
+	private applyAuthUpdate(update: AuthUpdate): void {
+		this.agentStatus = update.availability;
+		this.storeSnapshot('auth_providers', update.snapshot as unknown as JsonValue);
+		this.storeSnapshot('models', { models: update.models } as unknown as JsonValue);
+		if (update.availability === 'ready') this.announceStatus('agent_ready');
+		else if (update.availability === 'model_required')
+			this.announceStatus('agent_model_required', 'Select an authenticated model to continue.');
+		else
+			this.announceStatus(
+				'agent_unconfigured',
+				'No authenticated model is configured. Set up a provider to continue.'
+			);
+	}
+
 	private async forwardCommand(clientId: string, frame: CommandFrame): Promise<void> {
 		const rpcId = `web-agent-${++this.nextRequestNumber}-${crypto.randomUUID()}`;
 		let command: JsonObject;
@@ -386,6 +504,10 @@ export class RpcBroker {
 				: {})
 		};
 		this.send(request.clientId, frame);
+		if (success && request.browserCommand === 'set_model') {
+			this.agentStatus = 'ready';
+			this.announceStatus('agent_ready');
+		}
 
 		if (success && data !== undefined) {
 			const snapshotType = snapshotTypeFor(request.browserCommand);

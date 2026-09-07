@@ -5,9 +5,15 @@ import { CLI_HELP, parseCliArgs } from './cli.js';
 import { embeddedAssets } from './embedded-assets.generated.js';
 import { createWebAgentRuntime } from './main.js';
 import { findAvailablePort } from './port.js';
+import { hasSameWebSocketOrigin } from './websocket-origin.js';
 
 function localUrl(host: string, port: number): string {
 	return `http://${host.includes(':') ? `[${host}]` : host}:${port}`;
+}
+
+function isLoopbackHost(host: string): boolean {
+	const normalized = host.toLowerCase();
+	return normalized === 'localhost' || normalized === '::1' || /^127(?:\.\d{1,3}){3}$/.test(host);
 }
 
 function openBrowser(url: string): void {
@@ -40,13 +46,24 @@ function assetResponse(pathname: string): Response {
 try {
 	const cli = parseCliArgs(process.argv.slice(2));
 	const port = findAvailablePort(cli.host, cli.port);
-	const runtime = await createWebAgentRuntime(cli.sdk, process.cwd());
+	const webAuthEnabled = isLoopbackHost(cli.host) || cli.allowWebAuth;
+	if (!isLoopbackHost(cli.host) && cli.allowWebAuth)
+		console.warn(
+			'Warning: browser credential entry is enabled beyond loopback; HTTP/WebSocket traffic is unencrypted.'
+		);
+	const runtime = await createWebAgentRuntime(cli.sdk, process.cwd(), {
+		webAuthEnabled,
+		webAuthDisabledReason:
+			'Browser authentication is disabled on non-loopback listeners. Restart with --allow-web-auth only over a trusted connection.'
+	});
 	const server = Bun.serve({
 		hostname: cli.host,
 		port,
 		fetch(request, server) {
 			const url = new URL(request.url);
 			if (url.pathname === '/ws') {
+				if (!hasSameWebSocketOrigin(request))
+					return new Response('WebSocket origin rejected.', { status: 403 });
 				const upgraded = server.upgrade(request, { data: undefined });
 				return upgraded
 					? (undefined as unknown as Response)

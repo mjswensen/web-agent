@@ -29,7 +29,9 @@ Saved trust decisions and `defaultProjectTrust` are honored. With `ask` and no s
 
 Session listing/switching is restricted to the launch cwd. Legacy sessions without cwd are accepted only when found by the launch project's normal or explicit session directory. New/switch/fork/clone operations are mutually exclusive. Runtime session events are re-subscribed after replacement.
 
-Availability has three states: `ready`, `unconfigured` (runtime works but no authenticated model), and `unavailable` (fatal post-start runtime failure). SDK initialization errors fail CLI startup. Unconfigured mode preserves session/settings access and disables Send.
+Availability has four browser states: `ready`, `unconfigured` (no authenticated models), `model_required` (credentials exist but an authenticated model must be selected), and `unavailable` (fatal post-start runtime failure). SDK initialization errors fail CLI startup. Non-ready modes preserve session/settings access and disable Send.
+
+`src/server/auth-controller.ts` bridges Pi's public provider-owned `ModelRuntime` login/logout interactions to one originating browser tab while provider/model snapshots remain shared. It serializes credential mutations, uses flow/prompt IDs, aborts on disconnect, redacts submitted secrets from errors, and never snapshots secret values. The Providers dialog supports API-key, OAuth URL, device-code, manual-code, select, and informational steps. Browser auth is enabled by default only on loopback; `--allow-web-auth` opts in elsewhere, and production WebSocket upgrades require a same-origin `Origin` header.
 
 ## Browser and client
 

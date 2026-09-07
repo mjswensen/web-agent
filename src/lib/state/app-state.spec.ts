@@ -35,6 +35,32 @@ describe('AppState session name', () => {
 		expect(state.sessionTitle).toBe('Current session');
 	});
 
+	it('tracks targeted authentication prompts without storing submitted values', () => {
+		const state = new AppState();
+		state.receive({
+			kind: 'auth',
+			flowId: 'flow-1',
+			event: { type: 'auth_url', url: 'https://provider.example/login' }
+		});
+		state.receive({
+			kind: 'auth',
+			flowId: 'flow-1',
+			event: {
+				type: 'prompt',
+				promptId: 'prompt-1',
+				promptType: 'secret',
+				message: 'Enter key'
+			}
+		});
+
+		expect(state.authFlow).toMatchObject({
+			id: 'flow-1',
+			status: 'active',
+			prompt: { promptId: 'prompt-1', promptType: 'secret' },
+			notices: [{ type: 'auth_url', url: 'https://provider.example/login' }]
+		});
+	});
+
 	it('uses the first message as the title for an unnamed persisted session', () => {
 		const state = new AppState();
 		state.receive({

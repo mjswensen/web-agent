@@ -27,6 +27,7 @@ export type AgentAvailability = 'ready' | 'unconfigured' | 'unavailable';
 
 export interface SdkRuntimeOwner {
 	runtime: AgentSessionRuntime;
+	modelRuntime: ModelRuntime;
 	launchCwd: string;
 	availability: AgentAvailability;
 	diagnostics: readonly AgentSessionRuntimeDiagnostic[];
@@ -216,6 +217,7 @@ export async function createSdkRuntime(
 	let closed = false;
 	return {
 		runtime,
+		modelRuntime,
 		launchCwd,
 		availability: available.length > 0 ? 'ready' : 'unconfigured',
 		diagnostics: runtime.diagnostics,

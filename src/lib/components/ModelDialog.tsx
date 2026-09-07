@@ -61,6 +61,17 @@ export function ModelDialog() {
 						<Button
 							variant="ghost"
 							size="sm"
+							onClick={() => {
+								app.setLayout('modelDialogOpen', false);
+								app.setLayout('providerDialogOpen', true);
+								void client?.sendCommand('get_auth_providers');
+							}}
+						>
+							Providers
+						</Button>
+						<Button
+							variant="ghost"
+							size="sm"
 							className="font-semibold text-blue-700 hover:bg-blue-50"
 							onClick={() => void refresh()}
 						>

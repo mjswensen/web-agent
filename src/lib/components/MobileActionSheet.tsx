@@ -14,6 +14,7 @@ export function MobileActionSheet() {
 		if (target === 'treeDrawerOpen') void client?.sendCommand('get_tree');
 		if (target === 'gitStatusDrawerOpen') void client?.sendCommand('get_git_status');
 		if (target === 'modelDialogOpen') void client?.sendCommand('get_available_models');
+		if (target === 'providerDialogOpen') void client?.sendCommand('get_auth_providers');
 	}
 
 	if (!app.layout.mobileActionsOpen) return null;
@@ -51,6 +52,14 @@ export function MobileActionSheet() {
 						onClick={() => open('gitStatusDrawerOpen')}
 					>
 						Changes
+					</Button>
+					<Button
+						variant="secondary"
+						size="touch"
+						className="text-slate-800"
+						onClick={() => open('providerDialogOpen')}
+					>
+						Providers
 					</Button>
 					<Button
 						variant="secondary"

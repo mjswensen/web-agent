@@ -7,6 +7,7 @@ describe('Web Agent CLI parsing', () => {
 			port: DEFAULT_PORT,
 			host: DEFAULT_HOST,
 			open: false,
+			allowWebAuth: false,
 			sdk: { continueSession: false, noSession: false }
 		});
 	});
@@ -19,6 +20,7 @@ describe('Web Agent CLI parsing', () => {
 	it('parses typed SDK startup options', () => {
 		const options = parseCliArgs([
 			'--open',
+			'--allow-web-auth',
 			'-c',
 			'--session-dir=history',
 			'--provider',
@@ -31,6 +33,7 @@ describe('Web Agent CLI parsing', () => {
 			'test-key'
 		]);
 		expect(options.open).toBe(true);
+		expect(options.allowWebAuth).toBe(true);
 		expect(options.sdk).toEqual({
 			continueSession: true,
 			noSession: false,
