@@ -20,6 +20,7 @@ export interface WebAgentCliOptions {
 	host: string;
 	open: boolean;
 	allowWebAuth: boolean;
+	allowTerminal: boolean;
 	sdk: SdkStartupOptions;
 }
 
@@ -72,6 +73,7 @@ export function parseCliArgs(
 	let host = DEFAULT_HOST;
 	let open = false;
 	let allowWebAuth = false;
+	let allowTerminal = false;
 	const sdk: SdkStartupOptions = { continueSession: false, noSession: false };
 
 	for (let index = 0; index < argv.length; index += 1) {
@@ -80,6 +82,7 @@ export function parseCliArgs(
 		if (
 			option === '--open' ||
 			option === '--allow-web-auth' ||
+			option === '--allow-terminal' ||
 			option === '--continue' ||
 			option === '-c' ||
 			option === '--no-session'
@@ -87,6 +90,7 @@ export function parseCliArgs(
 			if (inlineValue !== undefined) throw new CliError(`${option} does not accept a value.`);
 			if (option === '--open') open = true;
 			else if (option === '--allow-web-auth') allowWebAuth = true;
+			else if (option === '--allow-terminal') allowTerminal = true;
 			else if (option === '--no-session') sdk.noSession = true;
 			else sdk.continueSession = true;
 			continue;
@@ -132,7 +136,7 @@ export function parseCliArgs(
 	}
 	if ([sdk.continueSession, sdk.noSession, sdk.session !== undefined].filter(Boolean).length > 1)
 		throw new CliError('--continue, --session, and --no-session are mutually exclusive.');
-	return { port: parsePort(portValue), host, open, allowWebAuth, sdk };
+	return { port: parsePort(portValue), host, open, allowWebAuth, allowTerminal, sdk };
 }
 
 export const CLI_HELP = `Usage: web-agent [options]
@@ -142,6 +146,7 @@ Options:
   --host, --bind <addr>  Listen address (default: ${DEFAULT_HOST})
   --open                 Open the selected URL after startup
   --allow-web-auth       Allow credential entry when listening beyond loopback
+  --allow-terminal       Enable per-browser PTY terminal access
   --continue, -c         Continue the latest launch-project session
   --session <path-or-id> Open a launch-project session
   --no-session           Disable session persistence

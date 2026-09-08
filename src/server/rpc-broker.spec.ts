@@ -2,6 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { parseClientFrame } from '../lib/client/protocol.js';
 import { mapCommandToAgent, RpcBroker } from './rpc-broker.js';
 import type { AgentTransport } from './agent-transport.js';
+import type {
+	TerminalCallbacks,
+	TerminalOpenOptions,
+	TerminalProvider
+} from './terminal-provider.js';
 
 class FakePi implements AgentTransport {
 	readonly writes: unknown[] = [];
@@ -25,6 +30,28 @@ class FakePi implements AgentTransport {
 	emitRecord(record: unknown): void {
 		this.recordListener?.(record);
 	}
+}
+
+class FakeTerminal implements TerminalProvider {
+	readonly writes: Array<{ clientId: string; data: string }> = [];
+	readonly disconnects: string[] = [];
+	callbacks: TerminalCallbacks | undefined;
+
+	open(_clientId: string, options: TerminalOpenOptions) {
+		this.callbacks = options.callbacks;
+		return { pid: 42, shell: 'bash', reused: false };
+	}
+	write(clientId: string, data: string) {
+		this.writes.push({ clientId, data });
+	}
+	resize() {}
+	kill() {
+		return true;
+	}
+	disconnect(clientId: string) {
+		this.disconnects.push(clientId);
+	}
+	dispose() {}
 }
 
 function command(
@@ -209,6 +236,40 @@ describe('browser protocol validation and Pi RPC broker', () => {
 		});
 		expect(first).toContainEqual({ kind: 'git_diff_chunk', token: 'opaque-token', done: true });
 		expect(second).toEqual([]);
+	});
+
+	it('keeps terminal IO private to its owning browser and disconnects with that browser', async () => {
+		const pi = new FakePi();
+		const terminal = new FakeTerminal();
+		const broker = new RpcBroker(pi, { terminal });
+		const first: unknown[] = [];
+		const second: unknown[] = [];
+		const removeFirst = broker.addClient({ id: 'first', send: (frame) => first.push(frame) });
+		broker.addClient({ id: 'second', send: (frame) => second.push(frame) });
+		const open = parseClientFrame({
+			kind: 'command',
+			id: 'open',
+			command: 'terminal_open',
+			params: { cols: 80, rows: 24 }
+		});
+		if (!open.ok) throw new Error(open.error);
+		await broker.handleClientFrame('first', open.frame);
+		terminal.callbacks?.onData(new TextEncoder().encode('private output'));
+
+		expect(first).toContainEqual({
+			kind: 'terminal_status',
+			status: 'running',
+			pid: 42,
+			shell: 'bash'
+		});
+		expect(first).toContainEqual({
+			kind: 'terminal_output',
+			data: Buffer.from('private output').toString('base64')
+		});
+		expect(second).not.toContainEqual(expect.objectContaining({ kind: 'terminal_output' }));
+
+		removeFirst();
+		expect(terminal.disconnects).toEqual(['first']);
 	});
 
 	it('includes the launch directory in state snapshots', async () => {

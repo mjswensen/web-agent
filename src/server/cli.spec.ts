@@ -8,6 +8,7 @@ describe('Web Agent CLI parsing', () => {
 			host: DEFAULT_HOST,
 			open: false,
 			allowWebAuth: false,
+			allowTerminal: false,
 			sdk: { continueSession: false, noSession: false }
 		});
 	});
@@ -21,6 +22,7 @@ describe('Web Agent CLI parsing', () => {
 		const options = parseCliArgs([
 			'--open',
 			'--allow-web-auth',
+			'--allow-terminal',
 			'-c',
 			'--session-dir=history',
 			'--provider',
@@ -34,6 +36,7 @@ describe('Web Agent CLI parsing', () => {
 		]);
 		expect(options.open).toBe(true);
 		expect(options.allowWebAuth).toBe(true);
+		expect(options.allowTerminal).toBe(true);
 		expect(options.sdk).toEqual({
 			continueSession: true,
 			noSession: false,

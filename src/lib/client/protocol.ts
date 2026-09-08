@@ -32,6 +32,10 @@ export const browserCommands = [
 	'get_session_list',
 	'get_git_status',
 	'get_git_diff',
+	'terminal_open',
+	'terminal_input',
+	'terminal_resize',
+	'terminal_kill',
 	'get_auth_providers',
 	'start_auth',
 	'submit_auth_prompt',
@@ -94,6 +98,21 @@ export interface AuthFrame {
 	event: JsonObject;
 }
 
+export interface TerminalOutputFrame {
+	kind: 'terminal_output';
+	data: string;
+}
+
+export interface TerminalStatusFrame {
+	kind: 'terminal_status';
+	status: 'running' | 'exited' | 'terminated' | 'error';
+	pid?: number;
+	shell?: string;
+	exitCode?: number | null;
+	signal?: string | null;
+	message?: string;
+}
+
 export interface ServerStatusFrame {
 	kind: 'server_status';
 	status:
@@ -118,6 +137,8 @@ export type ServerFrame =
 	| SnapshotFrame
 	| GitDiffChunkFrame
 	| AuthFrame
+	| TerminalOutputFrame
+	| TerminalStatusFrame
 	| ServerStatusFrame
 	| PongFrame;
 

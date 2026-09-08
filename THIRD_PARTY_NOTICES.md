@@ -4,6 +4,7 @@ Web Agent standalone executables bundle third-party software. The principal runt
 
 - `@earendil-works/pi-coding-agent` and its `@earendil-works/pi-*` dependencies — MIT
 - React and React DOM — MIT
+- xterm.js (`@xterm/xterm` and `@xterm/addon-fit`) — MIT
 - markdown-it — MIT
 - sanitize-html — MIT
 - Bun runtime — MIT (with bundled third-party components under their respective licenses)

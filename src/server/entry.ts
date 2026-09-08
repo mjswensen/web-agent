@@ -47,12 +47,17 @@ try {
 	const cli = parseCliArgs(process.argv.slice(2));
 	const port = findAvailablePort(cli.host, cli.port);
 	const webAuthEnabled = isLoopbackHost(cli.host) || cli.allowWebAuth;
+	if (cli.allowTerminal)
+		console.warn(
+			'Warning: terminal access is enabled; every connected browser receives an unrestricted shell.'
+		);
 	if (!isLoopbackHost(cli.host) && cli.allowWebAuth)
 		console.warn(
 			'Warning: browser credential entry is enabled beyond loopback; HTTP/WebSocket traffic is unencrypted.'
 		);
 	const runtime = await createWebAgentRuntime(cli.sdk, process.cwd(), {
 		webAuthEnabled,
+		terminalEnabled: cli.allowTerminal,
 		webAuthDisabledReason:
 			'Browser authentication is disabled on non-loopback listeners. Restart with --allow-web-auth only over a trusted connection.'
 	});

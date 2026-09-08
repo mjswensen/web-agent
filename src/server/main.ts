@@ -5,6 +5,7 @@ import { createSdkRuntime, type SdkRuntimeOwner } from './sdk-runtime.js';
 import { SdkTransport } from './sdk-transport.js';
 import { createBunWebSocketHub, type BunWebSocketHub } from './websocket.js';
 import type { SdkStartupOptions } from './cli.js';
+import { BunTerminalProvider } from './terminal-provider.js';
 
 export interface WebAgentRuntime {
 	broker: RpcBroker;
@@ -17,6 +18,7 @@ export interface WebAgentRuntime {
 export interface WebAgentRuntimeOptions {
 	webAuthEnabled?: boolean;
 	webAuthDisabledReason?: string;
+	terminalEnabled?: boolean;
 }
 
 export async function createWebAgentRuntime(
@@ -37,6 +39,7 @@ export async function createWebAgentRuntime(
 		sessionList: sdk.sessionList,
 		gitStatus: new DefaultGitStatusProvider({ cwd: sdk.launchCwd }),
 		auth,
+		terminal: options.terminalEnabled ? new BunTerminalProvider(sdk.launchCwd) : undefined,
 		agentStatus: sdk.availability === 'unconfigured' ? 'unconfigured' : 'ready'
 	});
 	const webSockets = createBunWebSocketHub(broker);

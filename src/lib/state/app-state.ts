@@ -1,4 +1,10 @@
-import type { JsonObject, JsonValue, ServerFrame } from '../client/protocol.js';
+import type {
+	JsonObject,
+	JsonValue,
+	ServerFrame,
+	TerminalOutputFrame,
+	TerminalStatusFrame
+} from '../client/protocol.js';
 import {
 	initialConversationState,
 	reduceConversationEvent,
@@ -61,6 +67,7 @@ export interface LayoutState {
 	sessionDrawerOpen: boolean;
 	treeDrawerOpen: boolean;
 	gitStatusDrawerOpen: boolean;
+	terminalDrawerOpen: boolean;
 	mobileActionsOpen: boolean;
 }
 
@@ -124,6 +131,7 @@ function queueFrom(value: JsonValue): QueueState {
  */
 export class AppState {
 	private listeners = new Set<() => void>();
+	private terminalListeners = new Set<(frame: TerminalOutputFrame | TerminalStatusFrame) => void>();
 	private version = 0;
 
 	connection: Connection = {
@@ -146,6 +154,7 @@ export class AppState {
 		sessionDrawerOpen: false,
 		treeDrawerOpen: false,
 		gitStatusDrawerOpen: false,
+		terminalDrawerOpen: false,
 		mobileActionsOpen: false
 	};
 	notifications: NotificationState = { toasts: [] };
@@ -171,6 +180,17 @@ export class AppState {
 	private notify(): void {
 		this.version++;
 		for (const listener of this.listeners) listener();
+	}
+
+	subscribeTerminal(
+		listener: (frame: TerminalOutputFrame | TerminalStatusFrame) => void
+	): () => void {
+		this.terminalListeners.add(listener);
+		return () => this.terminalListeners.delete(listener);
+	}
+
+	get terminalEnabled(): boolean {
+		return asObject(this.snapshots.terminal)?.enabled === true;
 	}
 
 	get sessionState(): JsonObject | undefined {
@@ -482,6 +502,10 @@ export class AppState {
 	}
 
 	receive(frame: ServerFrame): void {
+		if (frame.kind === 'terminal_output' || frame.kind === 'terminal_status') {
+			for (const listener of this.terminalListeners) listener(frame);
+			return;
+		}
 		if (frame.kind === 'snapshot') {
 			this.snapshots = { ...this.snapshots, [frame.snapshotType]: frame.data };
 			if (frame.snapshotType === 'messages') {

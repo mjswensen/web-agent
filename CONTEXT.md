@@ -15,7 +15,8 @@ Browser tab(s) -- WebSocket /ws --> one Bun.serve server
 
 - `src/server/sdk-runtime.ts` creates the shared `ModelRuntime`, restricted resources/services, launch-project session target, trust diagnostics, shutdown flushing, and exactly one runtime.
 - `src/server/sdk-transport.ts` maps the retained RPC-shaped command surface onto public session/runtime APIs and emits compatible responses/events.
-- `src/server/rpc-broker.ts` validates/mutates command envelopes, correlates browser requests, broadcasts events/snapshots, batches streams, serializes session transitions through the adapter, and owns internal session-list/Git commands.
+- `src/server/rpc-broker.ts` validates/mutates command envelopes, correlates browser requests, broadcasts events/snapshots, batches streams, serializes session transitions through the adapter, and owns internal session-list/Git/terminal commands.
+- `src/server/terminal-provider.ts` optionally owns one unrestricted Bun PTY per browser connection. It starts in the launch cwd, batches bounded output, and terminates disconnected terminals after a 10-second grace period.
 - `src/server/main.ts` composes the runtime, adapter, broker, Git provider, and WebSocket hub.
 - `src/server/entry.ts` owns the sole `Bun.serve` instance and serves `embedded-assets.generated.ts` from memory.
 
@@ -28,6 +29,8 @@ Existing `~/.pi/agent/auth.json`, `models.json`, `settings.json`, trust decision
 Saved trust decisions and `defaultProjectTrust` are honored. With `ask` and no saved decision, project resources are ignored and a host diagnostic is printed; Web Agent does not add trust UI.
 
 Session listing/switching is restricted to the launch cwd. Legacy sessions without cwd are accepted only when found by the launch project's normal or explicit session directory. New/switch/fork/clone operations are mutually exclusive. Runtime session events are re-subscribed after replacement.
+
+Terminal access is disabled unless startup includes `--allow-terminal`. When enabled, each tab owns a non-resumable interactive shell that inherits the Web Agent process user and environment; hiding the drawer does not terminate it.
 
 Availability has four browser states: `ready`, `unconfigured` (no authenticated models), `model_required` (credentials exist but an authenticated model must be selected), and `unavailable` (fatal post-start runtime failure). SDK initialization errors fail CLI startup. Non-ready modes preserve session/settings access and disable Send.
 
@@ -51,7 +54,7 @@ Release compilation uses Bun's `--compile` against `build/server/server/entry.js
 
 ## CLI
 
-Loopback `127.0.0.1`, port `3000`/`PI_WEB_PORT`, fallback ports, and opt-in `--open` remain. Typed SDK options are `--continue`, `--session`, `--no-session`, `--session-dir`, `--name`, `--provider`, `--model`, `--thinking`, and `--api-key`. `--pi`, `PI_BIN`, and `--resume` were removed.
+Loopback `127.0.0.1`, port `3000`/`PI_WEB_PORT`, fallback ports, and opt-in `--open` remain. Typed SDK options are `--continue`, `--session`, `--no-session`, `--session-dir`, `--name`, `--provider`, `--model`, `--thinking`, and `--api-key`. `--allow-terminal` opts into unrestricted browser PTY access. `--pi`, `PI_BIN`, and `--resume` were removed.
 
 ## Verification
 

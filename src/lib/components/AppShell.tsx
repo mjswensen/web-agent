@@ -15,6 +15,7 @@ import { QueuePanel } from './QueuePanel';
 import { RecoveryPanel } from './RecoveryPanel';
 import { SessionDrawer } from './SessionDrawer';
 import { SessionTreeDrawer } from './SessionTreeDrawer';
+import { TerminalDrawer } from './TerminalDrawer';
 import { ThinkingDialog } from './ThinkingDialog';
 import { ToastHost } from './ToastHost';
 import { Button } from './core/Button';
@@ -78,6 +79,7 @@ export function AppShell() {
 			'mobileActionsOpen',
 			'treeDrawerOpen',
 			'gitStatusDrawerOpen',
+			'terminalDrawerOpen',
 			'sessionDrawerOpen',
 			'compactDialogOpen',
 			'thinkingDialogOpen',
@@ -172,6 +174,15 @@ export function AppShell() {
 							<Button size="toolbar" variant="ghost" onClick={openChanges}>
 								Changes
 							</Button>
+							{app.terminalEnabled && (
+								<Button
+									size="toolbar"
+									variant="ghost"
+									onClick={() => app.setLayout('terminalDrawerOpen', true)}
+								>
+									Terminal
+								</Button>
+							)}
 							<Button
 								size="toolbar"
 								variant="ghost"
@@ -224,6 +235,7 @@ export function AppShell() {
 			<SessionDrawer />
 			<SessionTreeDrawer />
 			<GitStatusDrawer />
+			<TerminalDrawer />
 			<MobileActionSheet />
 		</div>
 	);

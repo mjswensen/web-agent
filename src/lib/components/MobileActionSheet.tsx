@@ -53,6 +53,16 @@ export function MobileActionSheet() {
 					>
 						Changes
 					</Button>
+					{app.terminalEnabled && (
+						<Button
+							variant="secondary"
+							size="touch"
+							className="text-slate-800"
+							onClick={() => open('terminalDrawerOpen')}
+						>
+							Terminal
+						</Button>
+					)}
 					<Button
 						variant="secondary"
 						size="touch"

@@ -2,7 +2,7 @@
 
 Web Agent is a local, mobile-responsive React interface for the Pi coding-agent SDK. Web Agent 2.0 embeds one long-lived `AgentSessionRuntime` directly in its Bun server; it does not launch or require the Pi CLI.
 
-> **Security:** Web Agent controls an agent with local filesystem and shell access. It defaults to loopback, but `--host`/`--bind` can expose it on another interface. Only do this intentionally. The read-only Changes view can display tracked and untracked file contents, including credentials.
+> **Security:** Web Agent controls an agent with local filesystem and shell access. It defaults to loopback, but `--host`/`--bind` can expose it on another interface. Only do this intentionally. The read-only Changes view can display tracked and untracked file contents, including credentials. `--allow-terminal` additionally exposes an unrestricted interactive shell to every connected browser.
 
 ## Install and run
 
@@ -42,6 +42,7 @@ Browser credential entry is enabled by default only on loopback listeners. Use `
 | `--host <address>` / `--bind <address>` | Listen address; defaults to `127.0.0.1`.                  |
 | `--open`                                | Open the final URL.                                       |
 | `--allow-web-auth`                      | Allow credential entry beyond loopback (unencrypted).     |
+| `--allow-terminal`                      | Enable unrestricted per-browser PTY terminal access.      |
 | `--continue`, `-c`                      | Continue the latest launch-project session.               |
 | `--session <path-or-id>`                | Open a session belonging to the launch project.           |
 | `--no-session`                          | Disable session persistence.                              |
@@ -59,6 +60,7 @@ Web Agent 2.0 removed `--pi`, `PI_BIN`, `--resume`, and `-r` because no external
 - **Send** submits while idle; during active work it becomes **Steer**. Command+Enter invokes it on macOS.
 - **Follow-up** queues a message after the current run settles; **Abort** stops active work.
 - Header controls expose commands, providers, models, thinking, compaction, launch-project sessions, the read-only tree, and Git Changes.
+- With `--allow-terminal`, Terminal opens a full-viewport xterm.js drawer backed by a Bun PTY in the launch project. Each tab owns its shell; hiding the drawer leaves it running, while disconnecting terminates it after 10 seconds.
 - All connected tabs share the runtime, active session, conversation, queue, snapshots, and transitions.
 - Session new/switch/fork/clone operations are serialized to prevent cross-tab races.
 

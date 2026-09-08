@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer';
 import type {
 	BrowserCommand,
 	ClientFrame,
@@ -14,6 +15,7 @@ import type { AgentTransport } from './agent-transport.js';
 import type { AuthController, AuthUpdate } from './auth-controller.js';
 import type { GitStatusProvider } from './git-status.js';
 import type { SessionListProvider } from './session-list.js';
+import type { TerminalProvider } from './terminal-provider.js';
 
 export interface BrokerClient {
 	id: string;
@@ -26,6 +28,7 @@ export interface RpcBrokerOptions {
 	gitStatus?: GitStatusProvider;
 	agentStatus?: 'ready' | 'unconfigured' | 'model_required';
 	auth?: AuthController;
+	terminal?: TerminalProvider;
 }
 
 interface PendingRequest {
@@ -67,6 +70,22 @@ function requiredBoolean(params: JsonObject, key: string): boolean {
 	return params[key];
 }
 
+function terminalInput(params: JsonObject): string {
+	const data = params.data;
+	if (typeof data !== 'string' || data.length === 0)
+		throw new CommandValidationError('data must be a non-empty string.');
+	return data;
+}
+
+function terminalDimension(params: JsonObject, key: 'cols' | 'rows'): number {
+	const value = params[key];
+	const maximum = key === 'cols' ? 500 : 200;
+	if (!Number.isInteger(value) || (value as number) < 2 || (value as number) > maximum) {
+		throw new CommandValidationError(`${key} must be an integer from 2 to ${maximum}.`);
+	}
+	return value as number;
+}
+
 /** Converts public browser commands to the agent adapter schema. */
 export function mapCommandToAgent(frame: CommandFrame, id: string): JsonObject {
 	const params = asObject(frame.params);
@@ -76,6 +95,10 @@ export function mapCommandToAgent(frame: CommandFrame, id: string): JsonObject {
 	if (
 		command === 'get_git_status' ||
 		command === 'get_git_diff' ||
+		command === 'terminal_open' ||
+		command === 'terminal_input' ||
+		command === 'terminal_resize' ||
+		command === 'terminal_kill' ||
 		command === 'get_auth_providers' ||
 		command === 'start_auth' ||
 		command === 'submit_auth_prompt' ||
@@ -167,6 +190,7 @@ export class RpcBroker {
 	) {
 		this.agent = agent;
 		this.agentStatus = options.agentStatus;
+		if (options.terminal) this.snapshots.set('terminal', { enabled: true });
 		this.eventBatcher = new EventBatcher((events) => {
 			if (events.length === 1) this.broadcast({ kind: 'event', event: events[0] });
 			else this.broadcast({ kind: 'events', events });
@@ -226,6 +250,7 @@ export class RpcBroker {
 		if (this.options.sessionList) void this.refreshSessionList();
 		return () => {
 			this.options.auth?.disconnect(client.id);
+			this.options.terminal?.disconnect(client.id);
 			this.clients.delete(client.id);
 		};
 	}
@@ -234,6 +259,7 @@ export class RpcBroker {
 		for (const unsubscribe of this.detach) unsubscribe();
 		this.eventBatcher.dispose();
 		this.options.auth?.dispose();
+		this.options.terminal?.dispose();
 		this.clients.clear();
 		this.pending.clear();
 	}
@@ -254,6 +280,15 @@ export class RpcBroker {
 		}
 		if (frame.command === 'get_git_diff') {
 			await this.handleGitDiffRequest(clientId, frame);
+			return;
+		}
+		if (
+			frame.command === 'terminal_open' ||
+			frame.command === 'terminal_input' ||
+			frame.command === 'terminal_resize' ||
+			frame.command === 'terminal_kill'
+		) {
+			this.handleTerminalRequest(clientId, frame);
 			return;
 		}
 		if (
@@ -355,6 +390,57 @@ export class RpcBroker {
 					error: error instanceof Error ? error.message : 'Git could not load the full diff.'
 				})
 			);
+	}
+
+	private handleTerminalRequest(clientId: string, frame: CommandFrame): void {
+		const terminal = this.options.terminal;
+		if (!terminal) {
+			this.failure(clientId, frame.id, frame.command, new Error('Terminal access is disabled.'));
+			return;
+		}
+		try {
+			if (frame.command === 'terminal_open') {
+				const result = terminal.open(clientId, {
+					cols: terminalDimension(frame.params, 'cols'),
+					rows: terminalDimension(frame.params, 'rows'),
+					callbacks: {
+						onData: (data) =>
+							this.send(clientId, {
+								kind: 'terminal_output',
+								data: Buffer.from(data).toString('base64')
+							}),
+						onExit: (exitCode, signal) =>
+							this.send(clientId, { kind: 'terminal_status', status: 'exited', exitCode, signal })
+					}
+				});
+				this.send(clientId, {
+					kind: 'terminal_status',
+					status: 'running',
+					pid: result.pid,
+					shell: result.shell
+				});
+			} else if (frame.command === 'terminal_input') {
+				terminal.write(clientId, terminalInput(frame.params));
+			} else if (frame.command === 'terminal_resize') {
+				terminal.resize(
+					clientId,
+					terminalDimension(frame.params, 'cols'),
+					terminalDimension(frame.params, 'rows')
+				);
+			} else {
+				terminal.kill(clientId);
+				this.send(clientId, { kind: 'terminal_status', status: 'terminated' });
+			}
+			this.send(clientId, {
+				kind: 'response',
+				id: frame.id,
+				command: frame.command,
+				success: true,
+				...(frame.command === 'terminal_open' ? { data: { running: true } } : {})
+			});
+		} catch (error) {
+			this.failure(clientId, frame.id, frame.command, error);
+		}
 	}
 
 	private async handleAuthRequest(clientId: string, frame: CommandFrame): Promise<void> {
