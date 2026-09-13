@@ -19,6 +19,7 @@ import { TerminalDrawer } from './TerminalDrawer';
 import { ThinkingDialog } from './ThinkingDialog';
 import { ToastHost } from './ToastHost';
 import { Button } from './core/Button';
+import { Icon } from './Icon';
 
 export function AppShell() {
 	const app = useAppState();
@@ -156,22 +157,50 @@ export function AppShell() {
 						<Button
 							variant="secondary"
 							size="touch"
-							className="px-3 font-semibold sm:hidden"
+							className="inline-flex items-center gap-1.5 px-3 font-semibold sm:hidden"
 							onClick={() => app.setLayout('mobileActionsOpen', true)}
 						>
+							<Icon name="menu" className="size-4 shrink-0 text-slate-400 dark:text-slate-500" />
 							Menu
 						</Button>
 						<nav
-							className="hidden items-center border border-slate-300 bg-slate-50 p-0.5 sm:flex dark:border-slate-700 dark:bg-slate-950"
+							className="hidden items-center border border-slate-300 bg-slate-50 p-0.5 sm:flex dark:border-slate-700 dark:bg-slate-950 [&>button]:inline-flex [&>button]:items-center [&>button]:gap-1.5"
 							aria-label="Agent tools"
 						>
-							<Button size="toolbar" variant="ghost" onClick={openSessions}>
+							<Button
+								size="toolbar"
+								variant="ghost"
+								className="inline-flex items-center gap-1.5"
+								onClick={openSessions}
+							>
+								<Icon
+									name="history"
+									className="size-3.5 shrink-0 text-slate-400 dark:text-slate-500"
+								/>
 								Sessions
 							</Button>
-							<Button size="toolbar" variant="ghost" onClick={openTree}>
+							<Button
+								size="toolbar"
+								variant="ghost"
+								className="inline-flex items-center gap-1.5"
+								onClick={openTree}
+							>
+								<Icon
+									name="tree"
+									className="size-3.5 shrink-0 text-slate-400 dark:text-slate-500"
+								/>
 								Tree
 							</Button>
-							<Button size="toolbar" variant="ghost" onClick={openChanges}>
+							<Button
+								size="toolbar"
+								variant="ghost"
+								className="inline-flex items-center gap-1.5"
+								onClick={openChanges}
+							>
+								<Icon
+									name="changes"
+									className="size-3.5 shrink-0 text-slate-400 dark:text-slate-500"
+								/>
 								Changes
 							</Button>
 							{app.terminalEnabled && (
@@ -180,6 +209,10 @@ export function AppShell() {
 									variant="ghost"
 									onClick={() => app.setLayout('terminalDrawerOpen', true)}
 								>
+									<Icon
+										name="terminal"
+										className="size-3.5 shrink-0 text-slate-400 dark:text-slate-500"
+									/>
 									Terminal
 								</Button>
 							)}
@@ -188,6 +221,10 @@ export function AppShell() {
 								variant="ghost"
 								onClick={() => app.setLayout('commandPaletteOpen', true)}
 							>
+								<Icon
+									name="commands"
+									className="size-3.5 shrink-0 text-slate-400 dark:text-slate-500"
+								/>
 								Commands
 							</Button>
 							<Button
@@ -196,9 +233,17 @@ export function AppShell() {
 								className="hidden xl:block"
 								onClick={openProviders}
 							>
+								<Icon
+									name="providers"
+									className="size-3.5 shrink-0 text-slate-400 dark:text-slate-500"
+								/>
 								Providers
 							</Button>
 							<Button size="toolbar" variant="ghost" onClick={openModelDialog}>
+								<Icon
+									name="model"
+									className="size-3.5 shrink-0 text-slate-400 dark:text-slate-500"
+								/>
 								Model
 							</Button>
 							<Button
@@ -206,6 +251,10 @@ export function AppShell() {
 								variant="ghost"
 								onClick={() => app.setLayout('thinkingDialogOpen', true)}
 							>
+								<Icon
+									name="thinking"
+									className="size-3.5 shrink-0 text-slate-400 dark:text-slate-500"
+								/>
 								Think
 							</Button>
 							<Button
@@ -213,6 +262,10 @@ export function AppShell() {
 								variant="ghost"
 								onClick={() => app.setLayout('compactDialogOpen', true)}
 							>
+								<Icon
+									name="compact"
+									className="size-3.5 shrink-0 text-slate-400 dark:text-slate-500"
+								/>
 								Compact
 							</Button>
 						</nav>

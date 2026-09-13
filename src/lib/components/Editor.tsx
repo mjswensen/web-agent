@@ -181,10 +181,7 @@ export function Editor() {
 								aria-label={action}
 								disabled={!canSend}
 							>
-								<Icon
-									name={app.isAgentActive ? 'cog-8-tooth' : 'paper-airplane'}
-									className="size-4"
-								/>
+								<Icon name={app.isAgentActive ? 'steer' : 'send'} className="size-4" />
 								<span className="hidden sm:inline">{action}</span>
 							</Button>
 						</div>
