@@ -76,11 +76,12 @@ export function AppShell() {
 	}
 
 	const closeTopOverlay = useCallback((): boolean => {
+		// Escape belongs to the interactive shell while the terminal is open (for example, Vim).
+		if (app.layout.terminalDrawerOpen) return false;
 		const overlays: Array<keyof LayoutState> = [
 			'mobileActionsOpen',
 			'treeDrawerOpen',
 			'gitStatusDrawerOpen',
-			'terminalDrawerOpen',
 			'sessionDrawerOpen',
 			'compactDialogOpen',
 			'thinkingDialogOpen',

@@ -53,6 +53,8 @@ const fakeSocket = () => {
 			switch (frame.command) {
 				case 'get_state':
 					this.emit({ kind: 'snapshot', snapshotType: 'state', data: state() });
+					if (window.location.search.includes('terminal=1'))
+						this.emit({ kind: 'snapshot', snapshotType: 'terminal', data: { enabled: true } });
 					respond(state());
 					break;
 				case 'get_messages':
@@ -261,7 +263,10 @@ const fakeSocket = () => {
 							message: {
 								role: 'assistant',
 								timestamp: 2,
-								content: [{ type: 'text', text: 'Streaming answer' }]
+								content: [
+									{ type: 'thinking', thinking: 'Inspect the implementation first.' },
+									{ type: 'text', text: 'Streaming answer' }
+								]
 							},
 							assistantMessageEvent: { type: 'text_delta', contentIndex: 0 }
 						}
@@ -297,6 +302,7 @@ const fakeSocket = () => {
 									role: 'assistant',
 									timestamp: 2,
 									content: [
+										{ type: 'thinking', thinking: 'Inspect the implementation first.' },
 										{
 											type: 'text',
 											text: 'Streaming **answer complete** [guide](https://example.com/guide)\n\n<script>window.markdownXss = true</script>'
@@ -372,6 +378,10 @@ test('renders assistant Markdown without executing injected markup', async ({ pa
 	);
 
 	const assistant = page.getByLabel('Pi message');
+	await expect(assistant.locator(':scope > section')).toContainText('Reasoning trace');
+	await expect(assistant.locator(':scope > section + .markdown')).toContainText(
+		'Streaming answer complete'
+	);
 	await expect(assistant.locator('.markdown strong')).toHaveText('answer complete');
 	await expect(assistant.getByRole('link', { name: 'guide' })).toHaveAttribute(
 		'href',
@@ -413,6 +423,15 @@ test('Escape closes the topmost overlay while an input is focused', async ({ pag
 	await page.getByLabel('Session name').focus();
 	await page.keyboard.press('Escape');
 	await expect(page.getByRole('dialog', { name: 'Sessions' })).toBeHidden();
+});
+
+test('Escape remains available to the interactive terminal', async ({ page }) => {
+	await page.goto('/?terminal=1');
+	await page.getByRole('button', { name: 'Terminal' }).click();
+	const terminal = page.getByRole('dialog', { name: 'Terminal' });
+	await expect(terminal).toBeVisible();
+	await page.keyboard.press('Escape');
+	await expect(terminal).toBeVisible();
 });
 
 test('opens Changes with staged, unstaged, and untracked Git previews', async ({ page }) => {

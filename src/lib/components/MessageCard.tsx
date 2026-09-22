@@ -44,6 +44,7 @@ export function MessageCard({ message, tools }: MessageCardProps) {
 				)}
 			</header>
 
+			{message.thinking && <ThinkingBlock thinking={message.thinking} />}
 			{message.text && (
 				<>
 					{message.role === 'user' || message.role === 'assistant' ? (
@@ -55,7 +56,6 @@ export function MessageCard({ message, tools }: MessageCardProps) {
 					)}
 				</>
 			)}
-			{message.thinking && <ThinkingBlock thinking={message.thinking} />}
 			{message.error && (
 				<p className="mt-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
 					{message.error}
