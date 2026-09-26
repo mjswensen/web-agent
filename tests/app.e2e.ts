@@ -264,7 +264,7 @@ const fakeSocket = () => {
 								role: 'assistant',
 								timestamp: 2,
 								content: [
-									{ type: 'thinking', thinking: 'Inspect the implementation first.' },
+									{ type: 'thinking', thinking: '**Inspect** the implementation first.' },
 									{ type: 'text', text: 'Streaming answer' }
 								]
 							},
@@ -302,7 +302,11 @@ const fakeSocket = () => {
 									role: 'assistant',
 									timestamp: 2,
 									content: [
-										{ type: 'thinking', thinking: 'Inspect the implementation first.' },
+										{
+											type: 'thinking',
+											thinking:
+												'## Plan\n\n**Inspect** the implementation first.\n\n- Read files\n- Run tests\n\n`code` <script>window.reasoningXss = true</script> [bad](javascript:alert(1))'
+										},
 										{
 											type: 'text',
 											text: 'Streaming **answer complete** [guide](https://example.com/guide)\n\n<script>window.markdownXss = true</script>'
@@ -373,16 +377,24 @@ test('renders assistant Markdown without executing injected markup', async ({ pa
 	await editor.fill('Show Markdown');
 	await page.getByRole('button', { name: 'Send' }).click();
 	await expect(editor).toHaveValue('');
+	const assistant = page.getByLabel('Pi message');
+	await expect(assistant.locator(':scope > section .markdown strong')).toHaveText('Inspect');
 	await page.evaluate(() =>
 		(window as typeof window & { finishActiveTurn: () => void }).finishActiveTurn()
 	);
 
-	const assistant = page.getByLabel('Pi message');
+	const reasoning = assistant.locator(':scope > section .markdown');
 	await expect(assistant.locator(':scope > section')).toContainText('Reasoning trace');
+	await expect(reasoning.getByRole('heading', { name: 'Plan' })).toBeVisible();
+	await expect(reasoning.locator('strong')).toHaveText('Inspect');
+	await expect(reasoning.locator('li')).toHaveText(['Read files', 'Run tests']);
+	await expect(reasoning.locator('code')).toContainText('code');
+	await expect(reasoning.getByRole('link', { name: 'bad' })).toHaveCount(0);
+	await expect(reasoning.locator('script')).toHaveCount(0);
 	await expect(assistant.locator(':scope > section + .markdown')).toContainText(
 		'Streaming answer complete'
 	);
-	await expect(assistant.locator('.markdown strong')).toHaveText('answer complete');
+	await expect(assistant.locator(':scope > .markdown strong')).toHaveText('answer complete');
 	await expect(assistant.getByRole('link', { name: 'guide' })).toHaveAttribute(
 		'href',
 		'https://example.com/guide'
@@ -390,6 +402,9 @@ test('renders assistant Markdown without executing injected markup', async ({ pa
 	await expect(assistant.locator('script')).toHaveCount(0);
 	expect(
 		await page.evaluate(() => (window as typeof window & { markdownXss?: boolean }).markdownXss)
+	).toBeUndefined();
+	expect(
+		await page.evaluate(() => (window as typeof window & { reasoningXss?: boolean }).reasoningXss)
 	).toBeUndefined();
 });
 

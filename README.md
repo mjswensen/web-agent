@@ -61,6 +61,7 @@ Web Agent 2.0 removed `--pi`, `PI_BIN`, `--resume`, and `-r` because no external
 - **Follow-up** queues a message after the current run settles; **Abort** stops active work.
 - Header controls expose commands, providers, models, thinking, compaction, launch-project sessions, the read-only tree, and Git Changes.
 - With `--allow-terminal`, Terminal opens a full-viewport xterm.js drawer backed by a Bun PTY in the launch project. Each tab owns its shell; hiding the drawer leaves it running, while disconnecting terminates it after 10 seconds.
+- Assistant replies and reasoning traces render sanitized Markdown; reasoning remains visually separate from the reply.
 - All connected tabs share the runtime, active session, conversation, queue, snapshots, and transitions.
 - Session new/switch/fork/clone operations are serialized to prevent cross-tab races.
 

@@ -4,9 +4,10 @@ import { renderMarkdown } from '$lib/format/markdown';
 interface MarkdownProps {
 	source: string;
 	compact?: boolean;
+	reasoning?: boolean;
 }
 
-export function Markdown({ source, compact = false }: MarkdownProps) {
+export function Markdown({ source, compact = false, reasoning = false }: MarkdownProps) {
 	const cacheRef = useRef<{ source: string; html: string }>({ source: '', html: '' });
 	const html = useMemo(() => {
 		if (source !== cacheRef.current.source) {
@@ -17,7 +18,7 @@ export function Markdown({ source, compact = false }: MarkdownProps) {
 
 	return (
 		<div
-			className={`markdown ${compact ? 'markdown-compact' : ''}`}
+			className={`markdown ${compact ? 'markdown-compact' : ''} ${reasoning ? 'markdown-reasoning' : ''}`}
 			dangerouslySetInnerHTML={{ __html: html }}
 		/>
 	);

@@ -77,6 +77,10 @@ body {
 	.markdown-compact {
 		@apply text-xs leading-5;
 	}
+
+	.markdown-reasoning {
+		@apply break-words text-violet-950 dark:text-violet-100;
+	}
 }
 
 @media (prefers-color-scheme: dark) {
