@@ -30,6 +30,10 @@ export function MobileActionSheet() {
 		>
 			<div className="absolute right-3 bottom-3 left-3 rounded-xl border border-slate-200 bg-white p-3 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
 				<div className="grid grid-cols-2 gap-2 text-sm [&>button]:inline-flex [&>button]:items-center [&>button]:justify-center">
+					<Button variant="secondary" size="touch" onClick={() => open('mcpDialogOpen')}>
+						<Icon name="mcp" className="mr-2 size-4 shrink-0 text-slate-400 dark:text-slate-500" />
+						MCP servers
+					</Button>
 					<Button
 						variant="secondary"
 						size="touch"

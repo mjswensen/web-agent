@@ -140,6 +140,12 @@ export function mapCommandToAgent(frame: CommandFrame, id: string): JsonObject {
 			const since = optionalString(params, 'since');
 			return since === undefined ? base : { ...base, since };
 		}
+		case 'set_mcp_config':
+			return {
+				...base,
+				text: requiredString(params, 'text'),
+				revision: requiredString(params, 'revision')
+			};
 		case 'set_session_name':
 			return { ...base, name: requiredString(params, 'name') };
 		default:

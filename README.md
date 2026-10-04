@@ -34,6 +34,24 @@ The Providers dialog supports Pi's provider-owned API-key and OAuth setup flows.
 
 Browser credential entry is enabled by default only on loopback listeners. Use `--allow-web-auth` to opt in when binding to another interface, and only do so over a trusted connection: Web Agent does not provide TLS, so plain HTTP/WebSocket traffic is unencrypted. OAuth providers that redirect to a loopback callback may not work when the browser and Web Agent run on different machines; device-code and manual-code flows do not have that limitation.
 
+## MCP servers
+
+Web Agent embeds Pi **1.0.2** and its built-in MCP, codemode, and tool-search integrations. Open **MCP** in the header or **MCP servers** in the mobile menu to edit user-level `~/.pi/agent/mcp.json` as JSON. Add stdio servers with `command`, `args`, and `env`, or streamable HTTP servers with `url` and `headers`. For example:
+
+```json
+{
+	"mcpServers": {
+		"docs": { "url": "https://example.com/mcp", "exposure": "direct" }
+	}
+}
+```
+
+Use `enabled: false` to disable a server, remove its entry to delete it, and set `exposure` to `codemode` (default), `deferred`, `direct`, or `hidden`. `toolExposure` overrides individual tools. **Save & reconnect** persists the file and reloads resources without replacing the conversation; wait until the agent is idle. Concurrent stale edits are rejected. Existing trusted project `.pi/mcp.json` entries take precedence; project configuration is not edited by this dialog.
+
+Only configure trusted servers: stdio executables and `!command` credential values run with your local user privileges, and remote servers receive tool data. Prefer `${TOKEN}` environment references over literal secrets. Configuration contents are sent only to the requesting tab, never broadcast or retained in reconnect snapshots. Browser access requires loopback or `--allow-web-auth`, just like provider credentials.
+
+Pi validates advanced options during reload. **Check connections** shows Pi's server states, tool counts, and connection errors. If you have the Pi CLI installed separately, you can also use `pi mcp list` for connection diagnostics and `pi mcp login <server>` / `pi mcp logout <server>` for OAuth, then save in the dialog to reconnect. Browser-based MCP OAuth and MCP Apps are not supported. Ordinary MCP tool calls and results appear in the conversation like built-in tools.
+
 ## CLI reference
 
 | Option                                  | Description                                               |
@@ -59,7 +77,7 @@ Web Agent 2.0 removed `--pi`, `PI_BIN`, `--resume`, and `-r` because no external
 
 - **Send** submits while idle; during active work it becomes **Steer**. Command+Enter invokes it on macOS.
 - **Follow-up** queues a message after the current run settles; **Abort** stops active work.
-- Header controls expose commands, providers, models, thinking, compaction, launch-project sessions, the read-only tree, and Git Changes.
+- Header controls expose commands, providers, MCP configuration, models, thinking, compaction, launch-project sessions, the read-only tree, and Git Changes.
 - With `--allow-terminal`, Terminal opens a full-viewport xterm.js drawer backed by a Bun PTY in the launch project. Each tab owns its shell; hiding the drawer leaves it running, while disconnecting terminates it after 10 seconds.
 - Assistant replies and reasoning traces render sanitized Markdown; reasoning remains visually separate from the reply.
 - All connected tabs share the runtime, active session, conversation, queue, snapshots, and transitions.

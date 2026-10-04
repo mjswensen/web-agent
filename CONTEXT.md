@@ -20,11 +20,11 @@ Browser tab(s) -- WebSocket /ws --> one Bun.serve server
 - `src/server/main.ts` composes the runtime, adapter, broker, Git provider, and WebSocket hub.
 - `src/server/entry.ts` owns the sole `Bun.serve` instance and serves `embedded-assets.generated.ts` from memory.
 
-The SDK is pinned exactly at `0.82.1`. Only public APIs are used. Model catalog creation disables network refresh; `PI_OFFLINE` is honored. Runtime overrides disable install telemetry/provider attribution without rewriting settings.
+The SDK and pi-ai are pinned exactly at `1.0.2`. Only public APIs are used. Model catalog creation disables network refresh; `PI_OFFLINE` is honored. Runtime overrides disable install telemetry/provider attribution without rewriting settings.
 
 ## Resources, trust, and sessions
 
-Existing `~/.pi/agent/auth.json`, `models.json`, `settings.json`, trust decisions, and JSONL sessions remain compatible. Settings writes for model/thinking/retry/compaction are flushed at shutdown. Direct user/project context, skills, and prompts load through the restricted SDK loader. Packages, extension discovery/UI, themes, image input, package installation/update, telemetry, and Pi update/catalog checks are disabled.
+Existing `~/.pi/agent/auth.json`, `models.json`, `settings.json`, trust decisions, and JSONL sessions remain compatible. Settings writes for model/thinking/retry/compaction are flushed at shutdown. Direct user/project context, skills, and prompts load through the restricted SDK loader. Packages, external extension discovery/UI, themes, image input, package installation/update, telemetry, and Pi update/catalog checks are disabled. The bundled MCP, codemode, and tool-search factories are explicitly loaded through public SDK APIs; each session binds extensions to connect configured servers. MCP reads user mcp.json and trusted project .pi/mcp.json. The MCP dialog edits only user configuration through origin-only responses, with no secret-bearing snapshots, private atomic writes, stale-edit detection, and idle-only resource reloads serialized with session transitions. Configuration access uses the same loopback/--allow-web-auth gate as credentials. MCP OAuth remains external (pi mcp login); connection diagnostics use the public bundled /mcp command handler through an origin-only status response (or pi mcp list externally). SDK notifications also print to the server console.
 
 Saved trust decisions and `defaultProjectTrust` are honored. With `ask` and no saved decision, project resources are ignored and a host diagnostic is printed; Web Agent does not add trust UI.
 

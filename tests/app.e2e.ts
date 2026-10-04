@@ -61,6 +61,15 @@ const fakeSocket = () => {
 					this.emit({ kind: 'snapshot', snapshotType: 'messages', data: { messages: [] } });
 					respond({ messages: [] });
 					break;
+				case 'get_mcp_config':
+					respond({ text: '{"mcpServers":{}}', revision: 'initial' });
+					break;
+				case 'get_mcp_status':
+					respond({ status: 'docs: connected, 1 tools (direct)' });
+					break;
+				case 'set_mcp_config':
+					respond();
+					break;
 				case 'get_commands':
 					this.emit({
 						kind: 'snapshot',
@@ -474,6 +483,28 @@ test('opens Changes with staged, unstaged, and untracked Git previews', async ({
 	await page.getByRole('button', { name: 'Menu' }).click();
 	await page.getByRole('button', { name: 'Changes' }).last().click();
 	await expect(page.getByRole('dialog', { name: 'Changes' })).toBeVisible();
+});
+
+test('configures MCP servers on desktop and mobile with JSON validation', async ({ page }) => {
+	await page.goto('/');
+	await page.getByRole('button', { name: 'MCP', exact: true }).click();
+	const dialog = page.getByRole('dialog', { name: 'MCP servers' });
+	const config = dialog.getByLabel('Server configuration (JSON)');
+	await expect(config).toHaveValue('{"mcpServers":{}}');
+	await dialog.getByRole('button', { name: 'Check connections' }).click();
+	await expect(dialog).toContainText('docs: connected, 1 tools');
+	await config.fill('{invalid');
+	await dialog.getByRole('button', { name: 'Save & reconnect' }).click();
+	await expect(dialog.getByRole('alert')).toContainText('valid JSON');
+	await config.fill('{"mcpServers":{"docs":{"url":"https://example.com/mcp"}}}');
+	await dialog.getByRole('button', { name: 'Save & reconnect' }).click();
+	await expect(dialog).not.toBeVisible();
+	await page.setViewportSize({ width: 390, height: 844 });
+	await page.getByRole('button', { name: 'Menu', exact: true }).click();
+	await page.getByRole('button', { name: 'MCP servers', exact: true }).click();
+	await expect(dialog).toBeVisible();
+	await page.keyboard.press('Escape');
+	await expect(dialog).not.toBeVisible();
 });
 
 test('completes a provider-owned API-key prompt without exposing the secret', async ({ page }) => {

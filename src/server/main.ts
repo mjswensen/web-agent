@@ -1,3 +1,5 @@
+import { getAgentDir } from '@earendil-works/pi-coding-agent';
+import { McpConfigController } from './mcp-config.js';
 import { AuthController } from './auth-controller.js';
 import { DefaultGitStatusProvider } from './git-status.js';
 import { RpcBroker } from './rpc-broker.js';
@@ -27,7 +29,10 @@ export async function createWebAgentRuntime(
 	options: WebAgentRuntimeOptions = {}
 ): Promise<WebAgentRuntime> {
 	const sdk = await createSdkRuntime(startup, cwd);
-	const transport = new SdkTransport(sdk.runtime);
+	const transport = new SdkTransport(
+		sdk.runtime,
+		new McpConfigController(getAgentDir(), options.webAuthEnabled ?? true)
+	);
 	const auth = new AuthController(
 		sdk.modelRuntime,
 		() => sdk.runtime.session,

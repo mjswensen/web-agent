@@ -5,6 +5,7 @@ import {
 	type AgentSession,
 	type AgentSessionRuntime
 } from '@earendil-works/pi-coding-agent';
+import type { McpConfigController } from './mcp-config.js';
 import type { AgentTransport } from './agent-transport.js';
 
 interface Command {
@@ -34,7 +35,10 @@ export class SdkTransport implements AgentTransport {
 	private unsubscribeSession: (() => void) | undefined;
 	private transitionActive = false;
 
-	constructor(private readonly runtime: AgentSessionRuntime) {
+	constructor(
+		private readonly runtime: AgentSessionRuntime,
+		private readonly mcpConfig?: McpConfigController
+	) {
 		this.bindSession();
 		runtime.setRebindSession(async () => this.bindSession());
 	}
@@ -91,7 +95,13 @@ export class SdkTransport implements AgentTransport {
 			throw new Error('Agent command must be an object.');
 		const command = value as Command;
 		if (typeof command.type !== 'string') throw new Error('Agent command requires a type.');
-		if (['new_session', 'switch_session', 'fork', 'clone'].includes(command.type)) {
+		if (this.transitionActive && ['prompt', 'steer', 'follow_up'].includes(command.type)) {
+			this.failure(command, new Error('Session resources are changing. Try again shortly.'));
+			return;
+		}
+		if (
+			['new_session', 'switch_session', 'fork', 'clone', 'set_mcp_config'].includes(command.type)
+		) {
 			if (this.transitionActive) {
 				this.failure(command, new Error('Another session transition is already in progress.'));
 				return;
@@ -141,6 +151,49 @@ export class SdkTransport implements AgentTransport {
 				return this.success(command);
 			case 'abort':
 				await session.abort();
+				return this.success(command);
+			case 'get_mcp_config':
+				if (!this.mcpConfig) throw new Error('MCP configuration is unavailable.');
+				return this.success(command, await this.mcpConfig.get());
+			case 'get_mcp_status': {
+				if (!this.mcpConfig) throw new Error('MCP configuration is unavailable.');
+				await this.mcpConfig.get(); // Apply the same private configuration access gate.
+				if (this.transitionActive || session !== this.runtime.session)
+					throw new Error('Session resources are changing. Try again shortly.');
+				const runner = session.extensionRunner;
+				const mcp = runner.getCommand('mcp');
+				if (!mcp) throw new Error('MCP integration is unavailable.');
+				const context = runner.createCommandContext();
+				let status = '';
+				try {
+					await mcp.handler('', {
+						...context,
+						mode: 'print',
+						hasUI: false,
+						ui: {
+							...context.ui,
+							notify: (text) => {
+								status = text;
+							}
+						}
+					});
+				} catch {
+					throw new Error('Cannot inspect MCP connections.');
+				}
+				return this.success(command, { status });
+			}
+			case 'set_mcp_config':
+				if (!this.mcpConfig) throw new Error('MCP configuration is unavailable.');
+				if (!session.isIdle)
+					throw new Error('Wait for the agent to finish before changing MCP servers.');
+				if (typeof command.text !== 'string' || typeof command.revision !== 'string')
+					throw new Error('MCP configuration requires text and revision.');
+				await this.mcpConfig.save(command.text, command.revision);
+				try {
+					await session.reload();
+				} catch {
+					throw new Error('MCP configuration saved, but reload failed. Restart Web Agent.');
+				}
 				return this.success(command);
 			case 'get_state':
 				return this.success(command, this.state(session));

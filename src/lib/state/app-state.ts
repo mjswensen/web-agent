@@ -62,6 +62,7 @@ export interface LayoutState {
 	commandPaletteOpen: boolean;
 	modelDialogOpen: boolean;
 	providerDialogOpen: boolean;
+	mcpDialogOpen: boolean;
 	thinkingDialogOpen: boolean;
 	compactDialogOpen: boolean;
 	sessionDrawerOpen: boolean;
@@ -149,6 +150,7 @@ export class AppState {
 		commandPaletteOpen: false,
 		modelDialogOpen: false,
 		providerDialogOpen: false,
+		mcpDialogOpen: false,
 		thinkingDialogOpen: false,
 		compactDialogOpen: false,
 		sessionDrawerOpen: false,

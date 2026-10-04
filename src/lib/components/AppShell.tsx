@@ -9,6 +9,7 @@ import { Editor } from './Editor';
 import { Footer } from './Footer';
 import { GitStatusDrawer } from './GitStatusDrawer';
 import { MobileActionSheet } from './MobileActionSheet';
+import { McpDialog } from './McpDialog';
 import { ModelDialog } from './ModelDialog';
 import { ProviderDialog } from './ProviderDialog';
 import { QueuePanel } from './QueuePanel';
@@ -87,6 +88,7 @@ export function AppShell() {
 			'thinkingDialogOpen',
 			'modelDialogOpen',
 			'providerDialogOpen',
+			'mcpDialogOpen',
 			'commandPaletteOpen'
 		];
 		const top = overlays.find((key) => app.layout[key] === true);
@@ -240,6 +242,14 @@ export function AppShell() {
 								/>
 								Providers
 							</Button>
+							<Button
+								size="toolbar"
+								variant="ghost"
+								onClick={() => app.setLayout('mcpDialogOpen', true)}
+							>
+								<Icon name="mcp" className="size-3.5 shrink-0 text-slate-400 dark:text-slate-500" />
+								MCP
+							</Button>
 							<Button size="toolbar" variant="ghost" onClick={openModelDialog}>
 								<Icon
 									name="model"
@@ -283,6 +293,7 @@ export function AppShell() {
 			<CommandPalette />
 			<ModelDialog />
 			<ProviderDialog />
+			{app.layout.mcpDialogOpen && <McpDialog />}
 			<ThinkingDialog />
 			<CompactDialog />
 			<ToastHost />

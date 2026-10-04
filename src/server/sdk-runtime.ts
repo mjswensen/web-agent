@@ -3,6 +3,9 @@ import {
 	createAgentSessionFromServices,
 	createAgentSessionRuntime,
 	createAgentSessionServices,
+	createCodemodeExtension,
+	createMcpExtension,
+	createToolSearchExtension,
 	getAgentDir,
 	hasTrustRequiringProjectResources,
 	ModelRuntime,
@@ -175,6 +178,11 @@ export async function createSdkRuntime(
 			resourceLoaderOptions: {
 				noExtensions: true,
 				noThemes: true,
+				extensionFactories: [
+					createCodemodeExtension({ mode: 'on' }),
+					createToolSearchExtension(),
+					createMcpExtension()
+				],
 				...(trust.trusted
 					? {}
 					: {
@@ -195,6 +203,14 @@ export async function createSdkRuntime(
 			...((thinkingLevel(startup.thinking) ?? cliModel.thinkingLevel)
 				? { thinkingLevel: thinkingLevel(startup.thinking) ?? cliModel.thinkingLevel }
 				: {})
+		});
+		await result.session.bindExtensions({
+			mode: 'print',
+			uiContext: {
+				...result.session.extensionRunner.createContext().ui,
+				notify: (message, type = 'info') => console.error(`[MCP ${type}] ${message}`)
+			},
+			onError: (error) => console.error(`[SDK extension] ${error.error}`)
 		});
 		return { ...result, services, diagnostics: [...hostDiagnostics, ...services.diagnostics] };
 	};

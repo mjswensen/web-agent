@@ -82,6 +82,36 @@ function command(
 }
 
 describe('browser protocol validation and Pi RPC broker', () => {
+	it('never broadcasts or snapshots secret-bearing MCP configuration responses', async () => {
+		const pi = new FakePi();
+		const broker = new RpcBroker(pi);
+		const source: unknown[] = [];
+		const other: unknown[] = [];
+		broker.addClient({ id: 'source', send: (frame) => source.push(frame) });
+		broker.addClient({ id: 'other', send: (frame) => other.push(frame) });
+		await broker.handleClientFrame('source', {
+			kind: 'command',
+			id: 'mcp',
+			command: 'get_mcp_config',
+			params: {}
+		});
+		const sent = pi.writes.at(-1) as { id: string };
+		pi.emitRecord({
+			type: 'response',
+			id: sent.id,
+			command: 'get_mcp_config',
+			success: true,
+			data: { text: 'secret-value', revision: 'r' }
+		});
+		expect(source).toContainEqual(
+			expect.objectContaining({ id: 'mcp', data: { text: 'secret-value', revision: 'r' } })
+		);
+		expect(JSON.stringify(other)).not.toContain('secret-value');
+		const reconnect: unknown[] = [];
+		broker.addClient({ id: 'reconnect', send: (frame) => reconnect.push(frame) });
+		expect(JSON.stringify(reconnect)).not.toContain('secret-value');
+		broker.dispose();
+	});
 	it('rejects malformed browser frames before they can reach Pi', () => {
 		expect(
 			parseClientFrame({ kind: 'command', id: 'a', command: 'bash', params: {} })

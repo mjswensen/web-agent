@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import type { McpConfigController } from './mcp-config.js';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -88,6 +89,38 @@ describe('SdkTransport', () => {
 		} finally {
 			rmSync(root, { recursive: true, force: true });
 		}
+	});
+
+	it('requires idle MCP writes and locks reloads against transitions and prompts', async () => {
+		const fake = fakeRuntime();
+		const session = fake.runtime.session;
+		let idle = false;
+		Object.defineProperty(session, 'isIdle', { get: () => idle });
+		let finishReload!: () => void;
+		const reload = new Promise<void>((resolve) => {
+			finishReload = resolve;
+		});
+		session.reload = vi.fn(() => reload);
+		const save = vi.fn(async () => undefined);
+		const controller = { save } as unknown as McpConfigController;
+		const transport = new SdkTransport(fake.runtime, controller);
+		const records: unknown[] = [];
+		transport.onRecord((record) => records.push(record));
+		const command = { id: 'mcp', type: 'set_mcp_config', text: '{"mcpServers":{}}', revision: 'r' };
+		await transport.send(command);
+		expect(save).not.toHaveBeenCalled();
+		expect(records).toContainEqual(expect.objectContaining({ id: 'mcp', success: false }));
+		idle = true;
+		const changing = transport.send(command);
+		await transport.send({ id: 'new', type: 'new_session' });
+		await transport.send({ id: 'prompt', type: 'prompt', message: 'Hello' });
+		expect(records).toContainEqual(expect.objectContaining({ id: 'new', success: false }));
+		expect(records).toContainEqual(expect.objectContaining({ id: 'prompt', success: false }));
+		finishReload();
+		await changing;
+		expect(save).toHaveBeenCalledExactlyOnceWith(command.text, command.revision);
+		expect(session.reload).toHaveBeenCalledOnce();
+		expect(records).toContainEqual(expect.objectContaining({ id: 'mcp', success: true }));
 	});
 
 	it('rejects a competing session transition', async () => {

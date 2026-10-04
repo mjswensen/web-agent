@@ -9,6 +9,7 @@ type IconName =
 	| 'terminal'
 	| 'commands'
 	| 'providers'
+	| 'mcp'
 	| 'model'
 	| 'thinking'
 	| 'compact'
@@ -78,6 +79,14 @@ export function Icon({ name, className = 'size-6' }: IconProps) {
 			)}
 			{name === 'providers' && (
 				<path d="M12 22v-5m3-9V2m2 6a1 1 0 0 1 1 1v4a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1zM9 8V2" />
+			)}
+			{name === 'mcp' && (
+				<>
+					<rect width="6" height="6" x="16" y="16" rx="1" />
+					<rect width="6" height="6" x="2" y="16" rx="1" />
+					<rect width="6" height="6" x="9" y="2" rx="1" />
+					<path d="M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3m-7-4V8" />
+				</>
 			)}
 			{name === 'model' && (
 				<>
